@@ -12,7 +12,8 @@ img{max-width:100%}
 [hidden]{display:none!important}
 </style>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23070b14'/%3E%3Cpath d='M16 6v20' stroke='%238a9bff' stroke-width='1.6' stroke-dasharray='2 2.4'/%3E%3Cpath d='M5 21h11l11-11' stroke='%23e6ebf4' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='16' cy='21' r='2.6' fill='%238a9bff'/%3E%3C/svg%3E">
-<script>try{var t=localStorage.getItem("strikeline.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
+<meta name="theme-color" content="#070b14">
+<script>var t=null;try{t=localStorage.getItem("strikeline.theme");}catch(e){}document.documentElement.dataset.theme=(t==="light"||t==="dark")?t:"dark";</script>
 <!--artifact-start-->
 <title>Strikeline Options</title>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -732,6 +733,8 @@ async function initAccounts(){
   });
   renderAuth();
   if(ACC.user)await loadServerState();
+  else if(location.hash==="#signin")openSignin();
+  if(location.hash==="#signin")history.replaceState(null,"",location.pathname+location.search);
 }
 async function loadServerState(){
   renderAuth();

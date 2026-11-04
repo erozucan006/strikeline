@@ -61,6 +61,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:13px 22px;border-radius:999px;background:var(--accent);color:var(--on-accent);font-weight:700;font-size:15px;text-decoration:none;border:0;transition:transform .2s,box-shadow .2s;box-shadow:0 10px 40px -12px rgba(138,155,255,.7)}
 .btn:hover{transform:translateY(-1px);box-shadow:0 14px 50px -12px rgba(138,155,255,.9)}
 .btn.sm{padding:8px 16px;font-size:13.5px}
+.ghost.sm{padding:7px 15px;font-size:13.5px}
 .ghost{display:inline-flex;align-items:center;padding:12px 20px;border-radius:999px;border:1px solid var(--line-2);color:var(--ink);font-weight:600;font-size:15px;text-decoration:none}
 .ghost:hover{border-color:var(--ink-2)}
 
@@ -194,7 +195,8 @@ footer nav{display:flex;gap:18px}
   .live{display:none}
   .demo{padding:18px}
   .greeks{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .nav .btn.sm{margin-left:auto}
+  .nav .ghost.sm{margin-left:auto}
+  .nav .wrap{gap:10px}
 }
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}html{scroll-behavior:auto}}
 </style>
@@ -206,7 +208,8 @@ footer nav{display:flex;gap:18px}
     <a class="brand" href="/"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#e6ebf4"/><path d="M16 6v20" stroke="#3b4ee0" stroke-width="1.6" stroke-dasharray="2 2.4"/><path d="M5 21h11l11-11" stroke="#070b14" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="16" cy="21" r="2.6" fill="#3b4ee0"/></svg>Strikeline</a>
     <nav aria-label="Sections"><a href="#how">How it works</a><a href="#levels">Levels</a><a href="#safety">Guard rails</a><a href="#pro">Pro tools</a></nav>
     <span class="live" id="livePill" title="Live index price from Deribit"><i></i><span id="livePx">Connecting to Deribit…</span></span>
-    <a class="btn sm" href="/app">Open the app</a>
+    <a class="ghost sm" href="/app#signin" id="navSignin">Sign in</a>
+    <a class="btn sm" href="/app" id="navApp">Open the app</a>
   </div>
 </header>
 
@@ -362,7 +365,7 @@ footer nav{display:flex;gap:18px}
   <div class="wrap">
     <h2>See it <span class="hl">live.</span></h2>
     <p>Open the app, take the knowledge check and place your first paper trade at real Deribit prices. No real money, no card, no download.</p>
-    <a class="btn" href="/app">Open Strikeline</a>
+    <div class="actions" style="justify-content:center"><a class="btn" href="/app">Open Strikeline</a><a class="ghost" href="/app#signin" id="closeSignin">Sign in to save your progress</a></div>
   </div>
 </section>
 </main>
@@ -506,6 +509,12 @@ function draw(now){
 function loop(now){draw(now);if(visible&&!reduce)raf=requestAnimationFrame(loop);}
 new IntersectionObserver(([e])=>{visible=e.isIntersecting;cancelAnimationFrame(raf);if(visible&&!reduce)raf=requestAnimationFrame(loop);}).observe(cv);
 addEventListener("resize",resize);resize();
+
+/* ---------- signed in already? (Supabase keeps its session as sb-<project>-auth-token) ---------- */
+try{
+  const signedIn=Object.keys(localStorage).some(k=>/^sb-.+-auth-token$/.test(k)&&/access_token/.test(localStorage.getItem(k)||""));
+  if(signedIn){$("navSignin").hidden=true;$("closeSignin").hidden=true;$("navApp").textContent="Open your account";}
+}catch(e){}
 
 /* ---------- nav ---------- */
 const nav=$("nav"),onScroll=()=>nav.classList.toggle("solid",scrollY>24);onScroll();addEventListener("scroll",onScroll,{passive:true});
