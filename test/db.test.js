@@ -3,7 +3,7 @@
 //   npm i --no-save @electric-sql/pglite@0.2.17 && node --test test/db.test.js
 import { test, before } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 
 let PGlite;
 try { ({ PGlite } = await import("@electric-sql/pglite")); } catch { /* optional dev dependency */ }
@@ -35,7 +35,8 @@ before(async () => {
     grant usage on schema public to authenticated, anon;
     insert into auth.users values ('${A}'), ('${B}');
   `);
-  await db.exec(readFileSync(new URL("../supabase/migrations/001_accounts.sql", import.meta.url), "utf8"));
+  const dir = new URL("../supabase/migrations/", import.meta.url);
+  for (const f of readdirSync(dir).filter((f) => f.endsWith(".sql")).sort()) await db.exec(readFileSync(new URL(f, dir), "utf8"));
 });
 
 test("scoring happens on the server and matches the page's rules", { skip }, async () => {
@@ -118,4 +119,23 @@ test("signed-out callers are refused", { skip }, async () => {
   await db.exec("reset role; select set_config('request.jwt.claim.sub', '', false); set role anon;");
   await fails(db.query("select my_state()"), "permission denied");
   await db.exec("reset role;");
+});
+
+test("reduce_position closes part of a position and keeps the rest consistent", { skip }, async () => {
+  const legs = [leg("C", 1, 78000, 2300, 0.08), leg("C", -1, 82000, 900, 0.08)];
+  const [pos] = await as(A, "select * from place_order('Bull call spread', 'BTC', $1, 4, 200)", [legs]);
+  const [{ cash: c0 }] = await as(A, "select cash from accounts");
+  const [r] = await as(A, "select * from reduce_position($1, 0.25, 30)", [pos.id]);
+  assert.deepEqual(r.legs.map((l) => l.qty), [0.06, 0.06], "75% of each leg remains");
+  assert.equal(Number(r.fee), 3, "fee shrinks in the same ratio");
+  const [{ cash: c1 }] = await as(A, "select cash from accounts");
+  assert.equal(Number(c1) - Number(c0), 30);
+  const [o] = await as(A, "select kind, legs from orders where position_id = $1 and kind = 'reduce'", [pos.id]);
+  assert.deepEqual(o.legs.map((l) => l.qty), [0.02, 0.02], "the closed part is logged");
+  await fails(as(A, "select reduce_position($1, 1, 10)", [pos.id]), "invalid_fraction");
+  await fails(as(A, "select reduce_position($1, 0, 10)", [pos.id]), "invalid_fraction");
+  await fails(as(A, "select reduce_position($1, 0.5, 1e9)", [pos.id]), "invalid_value");
+  await fails(as(B, "select reduce_position($1, 0.5, 10)", [pos.id]), "position_not_open");
+  await as(A, "select close_position($1, 50)", [pos.id]);
+  await fails(as(A, "select reduce_position($1, 0.5, 10)", [pos.id]), "position_not_open");
 });

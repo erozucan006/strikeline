@@ -44,7 +44,7 @@ Import the repository on [vercel.com/new](https://vercel.com/new). No build sett
 Without Supabase the app runs in guest mode and keeps everything in the browser. To turn on accounts:
 
 1. In the Vercel project: **Storage → Create Database → Supabase**, connected to this project. This adds `SUPABASE_URL` and `SUPABASE_ANON_KEY`.
-2. In Supabase: **SQL Editor** → run `supabase/migrations/001_accounts.sql`.
+2. In Supabase: **SQL Editor** → run each file in `supabase/migrations/` in order (`001_…`, then `002_…`).
 3. In Supabase: **Authentication → URL Configuration** → set **Site URL** to the deployed address and add it under **Redirect URLs**.
 4. Redeploy on Vercel so the functions pick up the new variables.
 
@@ -59,7 +59,7 @@ The browser reads its own rows through row level security and cannot write any t
 | `submit_assessment` | Scores answers with a key the browser never sees; 3 attempts per 24 h; validates every answer |
 | `accept_warning` | Only the latest, failed, unanswered assessment |
 | `place_order` | Required level from the legs (covered vs uncovered), fee bounds, expiry in the future, enough cash; logs the order against the assessment and whether it followed a warning |
-| `close_position` / `reset_account` | Own open positions only |
+| `close_position` / `reduce_position` / `reset_account` | Own open positions only; partial closes keep every leg above zero and scale fees with the size |
 
 Order prices still come from the page's live Deribit quote, which is fine for paper trading. Real trading must price and fill on the server through the broker.
 
@@ -67,6 +67,13 @@ Order prices still come from the page's live Deribit quote, which is fine for pa
 
 - Connect a licensed broker or exchange API for real order routing (see partner options: Interactive Brokers introducing-broker program, Alpaca Broker API, a German *Haftungsdach* provider).
 - Retention: keep assessment and order records for at least 5 years after an account closes (MiFID II record-keeping); today `on delete cascade` removes them with the user.
+
+## Order safety
+
+- **Size control in the ticket:** steppers, typed size and "most your cash allows". The first leg sets the size; other legs keep their ratio.
+- **Large orders need a second click:** when an order puts 25% or more of demo cash at risk, or its loss is not limited, the first click shows the risk and the button turns into "Confirm order". Changing the order cancels the armed confirmation.
+- **Too large is blocked** with a suggested size that fits.
+- **Positions can be reduced:** close 25%, 50% or all at current mid prices (partial options only when both parts stay above the minimum size).
 
 ## Appropriateness check (MiFID II Art. 25(3))
 

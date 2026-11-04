@@ -147,6 +147,23 @@ table.chain{border-collapse:collapse;width:100%;font-family:var(--f-num);font-si
 .row span{color:var(--muted)}
 .row b{font-family:var(--f-num);font-weight:500}
 .row.total b{font-size:16px;font-weight:600}
+/* ticket size + large-order guard */
+.sizebox{display:flex;flex-direction:column;gap:6px}
+.sizebox label{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.sizerow{display:flex;align-items:stretch;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--sunk)}
+.sizerow input{flex:1;min-width:0;border:0;background:var(--panel);color:var(--ink);font-family:var(--f-num);font-size:18px;font-weight:600;padding:8px 10px;text-align:right}
+.sizerow input:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.sizerow .unit{display:flex;align-items:center;padding:0 10px 0 4px;background:var(--panel);color:var(--muted);font-size:13px}
+.step{border:0;background:var(--sunk);width:44px;font-size:18px;font-weight:600;color:var(--ink)}
+.step:hover{background:var(--accent-soft);color:var(--accent)}
+.sizehint{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 8px}
+.risk{border:1px solid var(--amber);border-radius:8px;padding:10px 12px;font-size:12.5px;display:flex;flex-direction:column;gap:4px}
+.risk.stop{border-color:var(--loss)}
+.risk b{color:var(--amber)}
+.risk.stop b{color:var(--loss)}
+.primary.warnbtn{background:var(--amber);color:var(--bg)}
+.adj{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12.5px;padding-top:6px;border-top:1px solid var(--line)}
+.adj .ghost b{font-family:var(--f-num);font-weight:500}
 /* appropriateness: ticket area */
 .access{display:flex;flex-direction:column;gap:8px;font-size:12.5px}
 .access:empty{display:none}
@@ -284,7 +301,18 @@ dialog#assess::backdrop{background:rgba(8,14,20,.55)}
 
     <aside class="panel ticket">
       <div class="ph"><h2>Order ticket</h2><span class="sub">Limit at shown prices</span></div>
+      <div class="sizebox" id="sizebox" hidden>
+        <label for="tqty">Size</label>
+        <div class="sizerow">
+          <button class="step" type="button" data-sz="down" aria-label="Decrease size">−</button>
+          <input id="tqty" type="number" inputmode="decimal" autocomplete="off">
+          <span class="unit" id="tunit">BTC</span>
+          <button class="step" type="button" data-sz="up" aria-label="Increase size">+</button>
+        </div>
+        <div class="sizehint" id="sizehint"></div>
+      </div>
       <div class="rows" id="ticket"></div>
+      <div class="risk" id="risk" role="status" hidden></div>
       <div class="access" id="access"></div>
       <button class="primary" id="submit">Place demo order</button>
       <div class="msg" id="msg" role="status"></div>
@@ -544,9 +572,49 @@ function chartHover(ev){
 function hideTip(){$("tip").hidden=true;const cr=$("cross");if(cr)cr.setAttribute("visibility","hidden");}
 
 /* ---------- ticket ---------- */
+// Orders that put this share of demo cash at risk, or have no loss limit, need a second click.
+const BIG_SHARE=0.25;
+function legsSig(){return JSON.stringify(S.legs.map(l=>[l.type,l.K,l.e,l.side,l.qty]));}
+function baseQty(){return S.legs.length?S.legs[0].qty:0;}
+// Size is the first leg's quantity; other legs keep their ratio to it (a 1:1 spread stays 1:1).
+function setSize(v){
+  const u=S.u,b=baseQty();if(!b||!isFinite(v)||v<=0)return;
+  v=Math.max(U[u].minQ,+v.toFixed(U[u].qdp));const k=v/b;
+  for(const l of S.legs)l.qty=+Math.max(U[l.u].minQ,l.qty*k).toFixed(U[l.u].qdp);
+  S.legs[0].qty=v;renderLegs();renderAll();
+}
+function maxSize(A){const b=baseQty(),m=U[S.u].minQ;if(!b||!(A.req>0))return null;return Math.max(0,Math.floor(b*S.cash/A.req/m+1e-9)*m);}
+function renderSize(A){
+  const box=$("sizebox");box.hidden=!S.legs.length;if(!S.legs.length)return;
+  const inp=$("tqty"),u=S.u,dp=U[u].qdp;
+  if(document.activeElement!==inp)inp.value=baseQty().toFixed(dp);
+  inp.step=U[u].minQ;inp.min=U[u].minQ;inp.setAttribute("aria-describedby","sizehint");
+  $("tunit").textContent=u;
+  const mx=maxSize(A),share=A.req/Math.max(S.cash,1e-9);
+  $("sizehint").innerHTML=(S.legs.length>1?`<span>All ${S.legs.length} legs scale together.</span>`:"")+
+    (mx!=null&&mx>=U[u].minQ?`<span>Most your cash allows: <button class="link" data-sz="max">${mx.toFixed(dp)} ${u}</button></span>`:"")+
+    (isFinite(share)?`<span class="${share>=BIG_SHARE?"note":""}">${Math.round(share*100)}% of your cash at risk</span>`:"");
+}
+function renderRisk(A){
+  const box=$("risk"),btn=$("submit"),lg=S.legs;btn.classList.remove("warnbtn");
+  const canTrade=lg.length&&btn.textContent==="Place demo order"&&!btn.disabled;
+  if(!canTrade){box.hidden=true;return;}
+  const share=A.req/Math.max(S.cash,1e-9),unlimited=!isFinite(A.mn),mx=maxSize(A);
+  if(A.req>S.cash){
+    box.className="risk stop";box.hidden=false;btn.disabled=true;
+    box.innerHTML=`<b>Not enough demo cash</b><span>This order needs ${usd(A.req,2)}; you have ${usd(S.cash,2)}.${mx>=U[S.u].minQ?` Lower the size to ${mx.toFixed(U[S.u].qdp)} ${S.u} or less.`:" Pick a smaller strategy."}</span>`;return;
+  }
+  if(!(share>=BIG_SHARE||unlimited)){box.hidden=true;return;}
+  box.className="risk";box.hidden=false;
+  box.innerHTML=`<b>${unlimited?"Loss is not limited":"Large order"}</b><span>${unlimited?
+    `If ${S.u} moves sharply against you, you can lose more than the ${usd(A.req,0)} set aside for this order.`:
+    `This order puts ${usd(A.req,2)} at risk, ${Math.round(share*100)}% of your demo cash.`} Check the size before you confirm.</span>`;
+  if(S.bigOk===legsSig()){btn.textContent=`Confirm order · ${usd(A.req,0)} at risk`;btn.classList.add("warnbtn");}
+  else btn.textContent="Review large order";
+}
 function renderTicket(A){
-  const lg=S.legs;
-  if(!lg.length){$("ticket").innerHTML=`<div class="empty">No legs in the order.</div>`;renderAccess();$("submit").disabled=true;return;}
+  const lg=S.legs;renderSize(A);
+  if(!lg.length){$("ticket").innerHTML=`<div class="empty">No legs in the order.</div>`;renderAccess();$("submit").disabled=true;$("risk").hidden=true;return;}
   const net=A.net,total=net+A.fe;
   $("ticket").innerHTML=[
     ["Strategy",S.preset===null?"Custom":PRESETS[S.preset][0]],
@@ -556,7 +624,7 @@ function renderTicket(A){
     ["Required capital",usd(A.req,2)],
     ["Cash after order",usd(S.cash-total,2)]
   ].map((r,i)=>`<div class="row${i===4?" total":""}"><span>${r[0]}</span><b>${r[1]}</b></div>`).join("");
-  renderAccess();
+  renderAccess();renderRisk(A);
 }
 async function submit(){
   const A=analyze(S.legs,legEntry),msg=$("msg"),rec=currentRecord();
@@ -566,6 +634,9 @@ async function submit(){
   if(lv===0){openAssess("result");return;}
   if(need>lv)return;
   if(A.req>S.cash){msg.className="msg err";msg.textContent=`Not enough demo cash. This order needs ${usd(A.req,2)}; you have ${usd(S.cash,2)}. Reduce the size or pick a defined-risk strategy.`;return;}
+  // Large or unlimited-loss orders: first click shows the risk, second click places.
+  if((A.req/Math.max(S.cash,1e-9)>=BIG_SHARE||!isFinite(A.mn))&&S.bigOk!==legsSig()){S.bigOk=legsSig();renderAll();$("submit").focus();return;}
+  S.bigOk=null;
   const name=S.preset===null?"Custom":PRESETS[S.preset][0];
   const legs=S.legs.map(l=>({id:l.id,u:l.u,type:l.type,K:l.K,e:l.e,t:l.t,side:l.side,qty:l.qty,entry:+legEntry(l).toFixed(4)}));
   if(ACC.user){
@@ -594,7 +665,8 @@ const SERVER_ERRORS={
   warning_not_open:"This warning was already answered. Reload the page to see the latest state.",
   position_not_open:"This position is already closed. Reload the page to see the latest state.",
   not_signed_in:"Your session ended. Sign in again to continue.",
-  invalid_legs:"One of the options in this order has expired or is not valid. Refresh the strategy and try again."
+  invalid_legs:"One of the options in this order has expired or is not valid. Refresh the strategy and try again.",
+  invalid_fraction:"That part of the position is below the minimum size. Close the whole position instead."
 };
 function serverMessage(err){const m=String(err&&err.message||"");for(const k in SERVER_ERRORS)if(m.includes(k))return SERVER_ERRORS[k];
   return "The server did not accept this. Check your connection and try again.";}
@@ -896,16 +968,30 @@ function renderPos(){
   $("pos").innerHTML=tools+S.positions.map(p=>{
     let val=0,cost=0;for(const l of p.legs){const q=legQuote(l);val+=l.side*l.qty*q.mid;cost+=l.side*l.qty*l.entry;}
     const pl=val-cost-p.fee,d=Math.max(0,minDays(p.legs));
+    const open=String(S.adjust)===String(p.id);
+    const fr=closeFractions(p).map(f=>`<button class="ghost" data-closef="${p.id}:${f}">${f<1?`Close ${f*100}%`:"Close all"} · <b>${sgn(val*f,2)}</b></button>`).join("");
     return `<div class="pcard"><div class="top2"><b>${p.name} · ${p.u}</b><span class="num ${pl>=0?"up":"down"}">${sgn(pl,2)}</span></div>
       <small>${p.legs.map(l=>`${l.side>0?"Buy":"Sell"} ${l.qty} ${l.type} ${kfmt(l.K)} ${fmtDate(l.t)} @ ${px(l.u,l.entry)}`).join(" · ")}</small>
-      <div class="top2"><small>${d.toFixed(1)} days to first expiry · fees ${usd(p.fee,2)}</small><button class="ghost" data-close="${p.id}">Close at mid</button></div></div>`;}).join("");
+      <div class="top2"><small>${d.toFixed(1)} days to first expiry · fees ${usd(p.fee,2)}</small>${open?"":`<button class="ghost" data-adj="${p.id}">Reduce or close</button>`}</div>
+      ${open?`<div class="adj"><span>At current mid prices:</span>${fr}<button class="link" data-adj="">Cancel</button></div>`:""}</div>`;}).join("");
   $("possub").textContent=S.positions.length+" open";
 }
-async function closePos(id){
+// Partial closes are offered only when both the closed and the remaining part are at least the minimum size.
+function closeFractions(p){
+  const ok=f=>p.legs.every(l=>{const m=U[l.u].minQ;return +(l.qty*f).toFixed(4)>=m-1e-9&&+(l.qty*(1-f)).toFixed(4)>=m-1e-9;});
+  return [0.25,0.5].filter(ok).concat(1);
+}
+async function closePos(id,f=1){
   const i=S.positions.findIndex(p=>String(p.id)===String(id));if(i<0||ACC.busy)return;const p=S.positions[i];
   let val=0;for(const l of p.legs)val+=l.side*l.qty*legQuote(l).mid;
-  if(ACC.user){const r=await serverCall("close_position",{p_id:p.id,p_value:+val.toFixed(2)});if(r)await loadServerState();return;}
-  const j=S.positions.indexOf(p);if(j>=0)S.positions.splice(j,1);S.cash+=val;renderAll();
+  const part=+(val*f).toFixed(2);S.adjust=null;
+  if(ACC.user){
+    const r=f<1?await serverCall("reduce_position",{p_id:p.id,p_fraction:f,p_value:part}):await serverCall("close_position",{p_id:p.id,p_value:part});
+    if(r)await loadServerState();return;
+  }
+  if(f<1){for(const l of p.legs)l.qty=+(l.qty*(1-f)).toFixed(4);p.fee*=1-f;}
+  else{const j=S.positions.indexOf(p);if(j>=0)S.positions.splice(j,1);}
+  S.cash+=part;renderAll();
 }
 
 /* ---------- render all ---------- */
@@ -950,7 +1036,15 @@ function wire(){
   $("pos").addEventListener("click",e=>{const b=e.target.closest("[data-reset]");if(!b)return;
     if(b.dataset.reset==="ask")S.resetAsk=true;else if(b.dataset.reset==="no")S.resetAsk=false;else{S.resetAsk=false;resetAccount();return;}renderPos();});
   $("submit").addEventListener("click",submit);
-  $("pos").addEventListener("click",e=>{const b=e.target.closest("[data-close]");if(b)closePos(+b.dataset.close);});
+  $("pos").addEventListener("click",e=>{
+    const a=e.target.closest("[data-adj]");if(a){S.adjust=a.dataset.adj||null;renderPos();return;}
+    const c=e.target.closest("[data-closef]");if(c){const [id,f]=c.dataset.closef.split(":");closePos(id,+f);}});
+  // Ticket size: steppers, typed value (applied on Enter/blur so typing "0.1" isn't cut short), and "most your cash allows".
+  $("sizebox").addEventListener("click",e=>{const b=e.target.closest("[data-sz]");if(!b)return;const m=U[S.u].minQ,cur=baseQty();
+    if(b.dataset.sz==="up")setSize(cur+m);else if(b.dataset.sz==="down")setSize(Math.max(m,cur-m));
+    else setSize(maxSize(analyze(S.legs,legEntry)));});
+  $("tqty").addEventListener("change",e=>{const v=parseFloat(e.target.value);if(isFinite(v)&&v>0)setSize(v);else e.target.value=baseQty();});
+  $("tqty").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();e.target.blur();}});
   const svg=$("chart");svg.addEventListener("mousemove",chartHover);svg.addEventListener("touchmove",chartHover,{passive:true});svg.addEventListener("mouseleave",hideTip);svg.addEventListener("touchend",hideTip);
   let rz;window.addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(renderAll,120);});
 }

@@ -6,7 +6,7 @@
 //                                    (npm i --no-save @electric-sql/pglite@0.2.17); the browser test
 //                                    swaps supabase-js for test/fake-supabase.js, which calls /fake/*
 import { createServer } from "node:http";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
@@ -41,11 +41,12 @@ if (args.has("--db")) {
       $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
     grant execute on function auth.uid() to authenticated, anon;
     grant usage on schema public to authenticated, anon;`);
-  await db.exec(await readFile(join(root, "supabase/migrations/001_accounts.sql"), "utf8"));
+  for (const f of (await readdir(join(root, "supabase/migrations"))).filter((f) => f.endsWith(".sql")).sort())
+    await db.exec(await readFile(join(root, "supabase/migrations", f), "utf8"));
   process.env.SUPABASE_URL = `http://localhost:${port}/fake`;
   process.env.SUPABASE_ANON_KEY = "test-anon-key";
 }
-const RPCS = new Set(["my_state", "submit_assessment", "accept_warning", "place_order", "close_position", "reset_account"]);
+const RPCS = new Set(["my_state", "submit_assessment", "accept_warning", "place_order", "close_position", "reduce_position", "reset_account"]);
 // One connection: run each call to completion as the given user before the next starts.
 const asUser = (user, fn) => {
   const run = queue.then(async () => {
