@@ -147,6 +147,26 @@ table.chain{border-collapse:collapse;width:100%;font-family:var(--f-num);font-si
 .row span{color:var(--muted)}
 .row b{font-family:var(--f-num);font-weight:500}
 .row.total b{font-size:16px;font-weight:600}
+/* strategies grouped by level */
+.pgroups{display:flex;flex-direction:column;gap:8px}
+.pg{display:flex;flex-direction:column;gap:6px;padding:8px 10px;border:1px solid var(--line);border-radius:8px}
+.pg.locked{background:var(--sunk)}
+.pg.locked .chips button{color:var(--muted)}
+.pgh{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;font-size:12.5px}
+.pgh small{flex-basis:100%;color:var(--muted);font-size:11.5px}
+.pgh em{font-style:normal;font-size:11.5px;font-weight:600}
+.pgh em.ok{color:var(--gain)}
+.pgh em.no{color:var(--muted)}
+.pgroups .fine{margin:0}
+/* blocked order: what is wrong and how to fix it */
+.fixbox{border:1px solid var(--loss);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;font-size:12.5px}
+.fixbox b{color:var(--loss)}
+.fixrow{display:flex;flex-direction:column;gap:6px;padding-top:6px;border-top:1px solid var(--line)}
+.fixrow span{font-weight:600}
+.fixbtns{display:flex;flex-wrap:wrap;gap:6px}
+.fixbtns button{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:5px 10px;font-size:12.5px}
+.fixbtns button:hover{border-color:var(--accent);color:var(--accent)}
+.fixbtns button.go{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
 /* ticket size + large-order guard */
 .sizebox{display:flex;flex-direction:column;gap:6px}
 .sizebox label{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
@@ -289,7 +309,7 @@ dialog#assess::backdrop{background:rgba(8,14,20,.55)}
 
     <section class="panel">
       <div class="ph"><h2>Strategy</h2><span class="sub" id="stratname">Custom</span></div>
-      <div class="chips" id="presets"></div>
+      <div class="pgroups" id="presets"></div>
       <div class="explain" id="explain"></div>
       <div class="chartbox"><svg id="chart" role="img" aria-label="Profit and loss chart"></svg><div class="tip" id="tip" hidden></div></div>
       <div class="legend"><span><i class="sw"></i>At expiry (<span id="expl"></span>)</span><span class="pro-only"><i class="sw t0"></i>Value on day <span id="t0l">0</span></span></div>
@@ -443,8 +463,11 @@ const PRESETS=[
  ["Long call",[["C",0,1]]],["Long put",[["P",0,1]]],
  ["Bull call spread",[["C",0,1],["C",2,-1]]],["Bear put spread",[["P",0,1],["P",-2,-1]]],
  ["Straddle",[["C",0,1],["P",0,1]]],["Strangle",[["C",2,1],["P",-2,1]]],
- ["Iron condor",[["P",-4,1],["P",-2,-1],["C",2,-1],["C",4,1]]]
+ ["Iron condor",[["P",-4,1],["P",-2,-1],["C",2,-1],["C",4,1]]],
+ ["Short put",[["P",-2,-1]]],["Short call",[["C",2,-1]]],["Short strangle",[["C",2,-1],["P",-2,-1]]]
 ];
+// Shown grouped by the options level each strategy needs.
+const LEVEL_GROUPS=[[1,"Buy options","Loss limited to the premium you pay"],[2,"Spreads","Every sold option is covered by one you buy"],[3,"Uncovered selling","Losses can exceed the premium you receive"]];
 function atmIdx(u,code){const e=expOf(u,code),F=fwd(u,code,S.spot[u],daysTo(e.t));let a=0;e.s.forEach((r,j)=>{if(Math.abs(r[0]-F)<Math.abs(e.s[a][0]-F))a=j;});return a;}
 function applyPreset(i){
   const e=expOf(S.u,S.exp),a=atmIdx(S.u,S.exp),ks=e.s.map(r=>r[0]);
@@ -488,9 +511,12 @@ function renderChain(){
   $("chainsub").textContent=`${u}-${S.exp} · forward $${px(u,F)} · USD per 1 ${u}`;
 }
 function renderPresets(){
-  const rec=currentRecord(),lv=userLevel();
-  $("presets").innerHTML=PRESETS.map((p,i)=>{const need=presetLevel(i),lock=rec&&!rec.expired&&need>lv;
-    return `<button data-p="${i}" aria-pressed="${S.preset===i}"${lock?` title="Needs options level ${need}"`:""}>${p[0]}${lock?`<span class="lk">Level ${need}</span>`:""}</button>`;}).join("");
+  const rec=currentRecord(),assessed=rec&&!rec.expired,lv=userLevel();
+  $("presets").innerHTML=LEVEL_GROUPS.map(([n,name,note])=>{
+    const open=assessed&&lv>=n,state=!assessed?"":open?`<em class="ok">Open to you</em>`:`<em class="no">Locked · your level is ${lv}</em>`;
+    const chips=PRESETS.map((p,i)=>presetLevel(i)===n?`<button data-p="${i}" aria-pressed="${S.preset===i}">${p[0]}</button>`:"").join("");
+    return `<div class="pg${assessed&&!open?" locked":""}"><div class="pgh"><b>Level ${n} · ${name}</b>${state}<small>${note}</small></div><div class="chips">${chips}</div></div>`;
+  }).join("")+(assessed&&lv<3?`<p class="fine">Locked strategies still show their chart, so you can explore them. Your level decides what you can place.</p>`:"");
   $("stratname").textContent=S.preset===null?(S.legs.length?"Custom":"No legs"):PRESETS[S.preset][0];
 }
 function renderLegs(){
@@ -805,6 +831,50 @@ function reqLevel(legs){
   }
   return 2;
 }
+// Sold legs that are not (fully) covered, with how much cover is missing. Same rule as reqLevel.
+function uncoveredLegs(legs){
+  const out=[];
+  for(const type of ["C","P"]){
+    const sold=legs.filter(l=>l.type===type&&l.side<0);
+    for(const s of sold){
+      const cover=legs.filter(l=>l.type===type&&l.side>0&&l.t>=s.t).reduce((a,l)=>a+l.qty,0);
+      const need=sold.filter(x=>x.t<=s.t).reduce((a,l)=>a+l.qty,0);
+      if(cover+1e-9<need)out.push({leg:s,short:+Math.min(s.qty,need-cover).toFixed(4)});
+    }
+  }
+  return out;
+}
+// A further out-of-the-money strike on the same expiry to buy as protection.
+function protectStrike(l){
+  const e=expOf(l.u,l.e);if(!e)return null;const ks=e.s.map(r=>r[0]),i=ks.indexOf(l.K);if(i<0)return null;
+  const j=l.type==="C"?Math.min(ks.length-1,i+2):Math.max(0,i-2);return ks[j]!==l.K?ks[j]:null;
+}
+const legName=l=>`${l.side>0?"Buy":"Sell"} ${l.type==="C"?"call":"put"} ${kfmt(l.K)} (${fmtDate(l.t)})`;
+function fixBox(need,lv){
+  const retake=MAX_TRIES-recentTries().length>0?`<button data-act="retake">Retake the check</button>`:"";
+  if(lv<2){ // level 1: any sold option is above the level
+    return `<div class="fixbox"><b>Your level ${lv} allows buying options only</b>
+      <span>This order sells ${S.legs.filter(l=>l.side<0).length} option(s). Selling, even with protection, needs level 2.</span>
+      <div class="fixbtns"><button class="go" data-fix="dropsold">Remove the sold options</button><button data-fix="buyall">Buy every leg instead</button>${retake}</div></div>`;
+  }
+  const rows=uncoveredLegs(S.legs).map(({leg,short})=>{const k=protectStrike(leg);
+    return `<div class="fixrow"><span>${legName(leg)} has no protection</span><div class="fixbtns">
+      ${k?`<button class="go" data-fix="protect:${leg.id}:${k}:${short}">Add protection: buy ${leg.type==="C"?"call":"put"} ${kfmt(k)}</button>`:""}
+      <button data-fix="flip:${leg.id}">Buy it instead</button><button data-fix="drop:${leg.id}">Remove it</button></div></div>`;}).join("");
+  return `<div class="fixbox"><b>This order needs level ${need}. Your level is ${lv}.</b>
+    <span>At level 2 every option you sell must be covered by an option you buy: same type, same or later expiry, at least the same size. That makes the maximum loss known in advance.</span>${rows}
+    ${retake?`<div class="fixbtns">${retake}</div>`:""}</div>`;
+}
+function applyFix(code){
+  const [kind,id,k,q]=code.split(":"),leg=S.legs.find(l=>String(l.id)===id);
+  if(kind==="dropsold")S.legs=S.legs.filter(l=>l.side>0);
+  else if(kind==="buyall")S.legs.forEach(l=>l.side=1);
+  else if(kind==="flip"&&leg)leg.side=1;
+  else if(kind==="drop"&&leg)S.legs=S.legs.filter(l=>l!==leg);
+  else if(kind==="protect"&&leg)S.legs.push({id:S.nid++,u:leg.u,type:leg.type,K:+k,e:leg.e,t:leg.t,side:1,qty:+q});
+  S.preset=null;renderLegs();renderAll();
+  $("msg").className="msg ok";$("msg").textContent=reqLevel(S.legs)<=userLevel()?"Order updated. It now fits your level; check the ticket and place it.":"Order updated.";
+}
 function presetLevel(i){return reqLevel(PRESETS[i][1].map(([t,o,s])=>({type:t,side:s,qty:1,t:0})));}
 const fmtDay=t=>new Date(t).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric",timeZone:"Europe/Berlin"});
 const fmtTime=t=>new Date(t).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit",timeZone:"Europe/Berlin"});
@@ -836,7 +906,7 @@ function renderAccess(){
     btn.textContent="Review my result";btn.disabled=false;return;
   }
   let line="";
-  if(S.legs.length&&need>lv){line=`<span class="need">This strategy needs level ${need} (${LEVELS[need].toLowerCase()}). Your level is ${lv}.</span>`;btn.disabled=true;}
+  if(S.legs.length&&need>lv){line=fixBox(need,lv);btn.disabled=true;}
   box.innerHTML=`<div class="lvl"><span class="chip${rec.warnedAck?" warn":""}">Level ${lv} · ${LEVELS[lv]}</span>${retake}</div>
     ${rec.warnedAck?`<span class="note">You chose to continue after an appropriateness warning. Selling options stays locked.</span>`:""}${line}${record}`;
 }
@@ -1021,7 +1091,8 @@ function wire(){
   $("legs").addEventListener("input",e=>{const i=e.target.closest("[data-q]");if(!i)return;const l=S.legs.find(x=>x.id==i.dataset.q);
     const v=parseFloat(i.value);if(isFinite(v)&&v>0){l.qty=+(Math.max(U[l.u].minQ,v)).toFixed(U[l.u].qdp);renderAll();}});
   $("tday").addEventListener("input",e=>{S.tday=+e.target.value;renderAll();});
-  $("access").addEventListener("click",e=>{const b=e.target.closest("[data-act]");if(b)assessAction(b.dataset.act);});
+  $("access").addEventListener("click",e=>{const f=e.target.closest("[data-fix]");if(f){applyFix(f.dataset.fix);return;}
+    const b=e.target.closest("[data-act]");if(b)assessAction(b.dataset.act);});
   const dlg=$("assess");
   dlg.addEventListener("click",e=>{const b=e.target.closest("button[data-act]");if(b)assessAction(b.dataset.act);});
   dlg.addEventListener("change",e=>{const fs=e.target.closest("fieldset");if(fs)fs.classList.remove("missing");

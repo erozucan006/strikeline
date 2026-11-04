@@ -85,4 +85,6 @@ Before the first order the client takes a knowledge check built along ESMA's app
 | 2 · Spreads | Covered spreads, iron condors | Level 1 + spread question |
 | 3 · Uncovered selling | Naked short calls/puts | Level 2 + both short-option questions + 10+ options/futures trades in 3 years (1–9 if working in finance) |
 
+Strategies are grouped by the level they need, with each group marked open or locked for the signed-in client. Locked strategies can still be explored on the chart. When an order is above the client's level, the ticket names each unprotected sold leg and offers one-click fixes: buy a further out-of-the-money option as protection (turning it into a spread), buy instead of sell, or remove the leg; level 1 clients can drop all sold legs or buy every leg instead.
+
 A failed check shows a clear warning; the client may proceed with buying options only after accepting it. Retakes are limited to 3 per 24 hours, checks expire after 12 months, and every order is logged against the assessment record. Signed-in users' records live in the database; guests' stay in the browser.
