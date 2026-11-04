@@ -16,7 +16,8 @@ browser ──every 15 s──▶ /api/chain (Vercel function, Frankfurt) ──
 
 | Path | What it is |
 | --- | --- |
-| `index.html` | The whole app: chain, strategy builder, payoff chart, ticket, positions |
+| `index.html` | Product page at `/`: live strike-lines hero, live examples, levels, guard rails |
+| `app.html` | The app at `/app`: chain, strategy builder, payoff chart, ticket, positions |
 | `api/chain.js` | Serverless function that fetches and returns the live chain |
 | `api/_snapshot.js` | Pure transform from Deribit's raw data to the chain format (tested) |
 | `api/config.js` | Hands the page the public Supabase URL and anon key (never the service key) |
@@ -28,7 +29,7 @@ browser ──every 15 s──▶ /api/chain (Vercel function, Frankfurt) ──
 
 ```bash
 npm test                      # transform, function and (with PGlite) database tests
-node test/serve.js            # preview on http://localhost:4173 using the recorded Deribit sample
+node test/serve.js            # preview on http://localhost:4173 (app at /app) using the recorded Deribit sample
 node test/serve.js --upstream # same, but calls Deribit for real
 node test/serve.js --db       # also turns on accounts, backed by the real SQL in an in-process Postgres
 ```
@@ -37,7 +38,7 @@ Node 20 or newer. The app has no runtime dependencies; database tests and `--db`
 
 ## Deploy
 
-Import the repository on [vercel.com/new](https://vercel.com/new). No build settings are needed: Vercel serves `index.html` and turns `api/*.js` into functions. `vercel.json` pins them to Frankfurt (`fra1`).
+Import the repository on [vercel.com/new](https://vercel.com/new). No build settings are needed: Vercel serves `index.html` at `/`, `app.html` at `/app` (`cleanUrls`), and turns `api/*.js` into functions. `vercel.json` pins them to Frankfurt (`fra1`).
 
 ### Accounts (optional)
 
@@ -45,7 +46,7 @@ Without Supabase the app runs in guest mode and keeps everything in the browser.
 
 1. In the Vercel project: **Storage → Create Database → Supabase**, connected to this project. This adds `SUPABASE_URL` and `SUPABASE_ANON_KEY`.
 2. In Supabase: **SQL Editor** → run each file in `supabase/migrations/` in order (`001_…`, then `002_…`).
-3. In Supabase: **Authentication → URL Configuration** → set **Site URL** to the deployed address and add it under **Redirect URLs**.
+3. In Supabase: **Authentication → URL Configuration** → set **Site URL** to the deployed address and add it under **Redirect URLs** (a sign-in link that lands on `/` is forwarded to `/app`).
 4. Redeploy on Vercel so the functions pick up the new variables.
 
 Sign-in is by emailed link. Supabase's built-in mail sender allows only a few emails per hour; connect your own SMTP under Authentication → Emails before real users arrive.

@@ -102,7 +102,8 @@ createServer(async (req, res) => {
   if (db && path === "/test/fake-supabase.js") {
     return res.writeHead(200, { "content-type": "text/javascript" }).end(await readFile(join(root, path)));
   }
-  const file = normalize(join(root, path === "/" ? "index.html" : path));
+  // Mirrors vercel.json "cleanUrls": /app serves app.html
+  const file = normalize(join(root, path === "/" ? "index.html" : path === "/app" ? "app.html" : path));
   if (!file.startsWith(root) || file.includes("/api/") || file.includes("/test/") || file.includes("/supabase/")) return res.writeHead(404).end();
   try {
     res.writeHead(200, { "content-type": types[extname(file)] || "application/octet-stream" }).end(await readFile(file));

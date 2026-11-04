@@ -1,6 +1,8 @@
 {
+  "cleanUrls": true,
   "regions": ["fra1"],
   "functions": {
-    "api/chain.js": { "maxDuration": 15 }
+    "api/chain.js": { "maxDuration": 15 },
+    "api/config.js": { "maxDuration": 5 }
   }
 }

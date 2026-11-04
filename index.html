@@ -3,1159 +3,516 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="Crypto options for everyone: live BTC and ETH option chains, strategy builder, payoff charts and Greeks.">
-<style>
-/* Same base reset the claude.ai artifact viewer applies, so both hosts render alike */
-:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-body{margin:0;font:14px system-ui,-apple-system,"Segoe UI",sans-serif}
-img{max-width:100%}
-[hidden]{display:none!important}
-</style>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232f56c9'/%3E%3Cpath d='M6 22 L13 22 L19 10 L26 10' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-<!--artifact-start-->
-<title>Strikeline Options</title>
+<title>Strikeline</title>
+<meta name="description" content="Crypto options in plain words: live BTC and ETH options from 0.01 BTC, every trade explained in one sentence, and a knowledge check that unlocks strategies as you learn.">
 <meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#070b14">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23070b14'/%3E%3Cpath d='M16 6v20' stroke='%238a9bff' stroke-width='1.6' stroke-dasharray='2 2.4'/%3E%3Cpath d='M5 21h11l11-11' stroke='%23e6ebf4' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='16' cy='21' r='2.6' fill='%238a9bff'/%3E%3C/svg%3E">
+<script>
+  // A sign-in link can land here (Supabase falls back to the Site URL). Hand the session to the app.
+  if (/access_token=|error_description=/.test(location.hash)) location.replace("/app" + location.hash);
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Schibsted+Grotesk:wght@400;500;600;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@400;500;600&family=Geologica:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap">
 <style>
-/* Layout: trading desk — chain | strategy workspace | order ticket, stacked on phones */
+/* Strikeline product page. One deliberate dark world (no light variant): midnight ink, one periwinkle
+   accent, semantic green/red only where money moves. Layout: hero with live "strike lines" canvas,
+   live numbers strip, copy + live demo sections, levels, guard rails, closing call to action. */
 :root{
-  --bg:#eaeef2; --panel:#ffffff; --sunk:#f3f6f9; --ink:#0f1a24; --muted:#5b6876; --line:#d5dde4;
-  --accent:#2f56c9; --accent-soft:#e3e9fb; --on-accent:#ffffff; --amber:#b86e0c;
-  --gain:#14805a; --gain-soft:#ddf2e8; --loss:#c03d2c; --loss-soft:#fbe4e0;
-  --itm:#f1f4f8;
-  --f-ui:"Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
-  --f-num:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
-  --r:10px;
+  --bg:#070b14; --bg-2:#0a101c; --panel:#0d1422; --panel-2:#111a2b; --line:#1c2639; --line-2:#2a3650;
+  --ink:#e6ebf4; --ink-2:#b4bfd2; --muted:#8290a8;
+  --accent:#8a9bff; --accent-2:#b8c2ff; --accent-soft:#19214a; --on-accent:#070b14;
+  --gain:#38d39f; --loss:#ff7070; --amber:#f2b252;
+  --f-display:"Geologica", "Hanken Grotesk", system-ui, sans-serif;
+  --f-ui:"Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-num:"Azeret Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --w:1180px;
+  color-scheme:dark;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
 }
-@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
-  --bg:#0b1117; --panel:#111a23; --sunk:#0e161e; --ink:#e4ebf2; --muted:#8a98a7; --line:#223140;
-  --accent:#7c9cff; --accent-soft:#1b2a4d; --on-accent:#0b1117; --amber:#f0a540;
-  --gain:#3dcf91; --gain-soft:#12322a; --loss:#ff6f5e; --loss-soft:#3a1b18; --itm:#14202b; color-scheme:dark }}
-:root[data-theme="dark"]{
-  --bg:#0b1117; --panel:#111a23; --sunk:#0e161e; --ink:#e4ebf2; --muted:#8a98a7; --line:#223140;
-  --accent:#7c9cff; --accent-soft:#1b2a4d; --on-accent:#0b1117; --amber:#f0a540;
-  --gain:#3dcf91; --gain-soft:#12322a; --loss:#ff6f5e; --loss-soft:#3a1b18; --itm:#14202b; color-scheme:dark }
-
 *{box-sizing:border-box}
-body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:14px;line-height:1.45;
-  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-block:14px 40px}
+html{scroll-behavior:smooth;scroll-padding-top:80px}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 var(--f-ui);-webkit-font-smoothing:antialiased;overflow-x:clip}
+[hidden]{display:none!important}
+a{color:inherit}
+img,svg,canvas{max-width:100%}
 .num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
-button{font:inherit;color:inherit;cursor:pointer}
-button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.wrap{max-width:1480px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.wrap{max-width:var(--w);margin:0 auto;padding-left:max(20px, env(safe-area-inset-left, 0px));padding-right:max(20px, env(safe-area-inset-right, 0px))}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
+h1,h2,h3{font-family:var(--f-display);font-weight:600;text-wrap:balance;margin:0}
+h2{font-size:clamp(32px,4.2vw,52px);line-height:1.04;letter-spacing:-.035em}
+.hl{color:var(--accent)}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.eyebrow::before{content:"";width:18px;height:1px;background:var(--accent)}
 
-/* top bar */
-.top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 22px}
-.brand{display:flex;align-items:baseline;gap:8px}
-.brand b{font-weight:800;font-size:20px;letter-spacing:-.02em}
-.brand span{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
-.seg{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:3px}
-.seg button{border:0;background:none;padding:5px 13px;border-radius:999px;font-weight:600;color:var(--muted)}
-.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
-.spot{display:flex;align-items:baseline;gap:10px}
-.spot .px{font-family:var(--f-num);font-size:22px;font-weight:600}
-.chg{font-family:var(--f-num);font-size:12px}
-.up{color:var(--gain)} .down{color:var(--loss)}
-.feed{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);background:none;border:0;padding:0}
-.dot{width:7px;height:7px;border-radius:50%;background:var(--gain)}
-.feed[data-state="loading"] .dot,.feed[data-state="snapshot"] .dot{background:var(--muted)}
-.feed[data-state="stale"] .dot{background:var(--amber)}
-.feed[data-state="live"] .dot{animation:beat 2s ease-in-out infinite}
+/* nav */
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:11;background:var(--bg)}
+.nav{position:fixed;inset:0 0 auto;z-index:10;padding-top:env(safe-area-inset-top,0px);border-bottom:1px solid transparent;transition:background .3s,border-color .3s}
+.nav.solid{background:rgba(7,11,20,.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-color:var(--line)}
+.nav .wrap{display:flex;align-items:center;gap:22px;height:64px}
+.brand{display:inline-flex;align-items:center;gap:10px;text-decoration:none;font-family:var(--f-display);font-weight:700;font-size:19px;letter-spacing:-.03em}
+.nav nav{display:flex;gap:22px;font-size:14px;color:var(--ink-2)}
+.nav nav a{text-decoration:none}
+.nav nav a:hover{color:var(--ink)}
+.live{margin-left:auto;display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid var(--line-2);border-radius:999px;font-family:var(--f-num);font-size:12px;color:var(--ink-2);white-space:nowrap}
+.live i{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.live.on i{background:var(--gain);box-shadow:0 0 10px var(--gain);animation:beat 2s ease-in-out infinite}
 @keyframes beat{50%{opacity:.35}}
-.spacer{flex:1}
-.acct{display:flex;gap:18px;font-size:12px;color:var(--muted)}
-.acct div b{display:block;font-family:var(--f-num);font-size:14px;color:var(--ink);font-weight:500}
-.notice{font-size:12px;color:var(--muted);border-left:3px solid var(--amber);padding:2px 0 2px 10px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:13px 22px;border-radius:999px;background:var(--accent);color:var(--on-accent);font-weight:700;font-size:15px;text-decoration:none;border:0;transition:transform .2s,box-shadow .2s;box-shadow:0 10px 40px -12px rgba(138,155,255,.7)}
+.btn:hover{transform:translateY(-1px);box-shadow:0 14px 50px -12px rgba(138,155,255,.9)}
+.btn.sm{padding:8px 16px;font-size:13.5px}
+.ghost{display:inline-flex;align-items:center;padding:12px 20px;border-radius:999px;border:1px solid var(--line-2);color:var(--ink);font-weight:600;font-size:15px;text-decoration:none}
+.ghost:hover{border-color:var(--ink-2)}
 
-/* grid */
-.grid{display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
-@media (min-width:860px){.grid{grid-template-columns:minmax(0,1fr) minmax(0,1.15fr)} .ticket{grid-column:1/-1}}
-@media (min-width:1260px){.grid{grid-template-columns:minmax(0,1.02fr) minmax(0,1.25fr) minmax(0,.78fr)} .ticket{grid-column:auto}}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:12px;min-width:0}
-.ph{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.ph h2{margin:0;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
-.sub{font-size:12px;color:var(--muted)}
+/* hero */
+.hero{position:relative;overflow:hidden;padding:150px 0 90px;border-bottom:1px solid var(--line);
+  background:radial-gradient(55% 70% at 78% 40%, rgba(138,155,255,.10), transparent 70%), var(--bg)}
+#lines{position:absolute;inset:0;width:100%;height:100%;display:block}
+.hero::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg, var(--bg) 0%, rgba(7,11,20,.86) 32%, rgba(7,11,20,0) 62%)}
+.hero .wrap{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:40px;align-items:end}
+.hero-in{max-width:640px}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:5px 12px;border:1px solid var(--line-2);border-radius:999px;font-size:12.5px;color:var(--ink-2);background:rgba(13,20,34,.6)}
+.pill i{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+.hero h1{margin-top:22px;font-size:clamp(46px,6.6vw,90px);line-height:.96;letter-spacing:-.045em}
+.lede{margin:24px 0 0;max-width:52ch;font-size:18px;color:var(--ink-2)}
+.actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:32px}
+.card{justify-self:end;width:min(340px,100%);padding:18px 20px;border:1px solid var(--line-2);border-radius:18px;background:rgba(13,20,34,.82);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 30px 70px -30px rgba(0,0,0,.9)}
+.card .top{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--muted)}
+.card .top b{color:var(--ink);font-weight:600}
+.card .big{margin:6px 0 2px;font-family:var(--f-display);font-weight:600;font-size:38px;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.card .sub{font-size:12.5px;color:var(--muted)}
+.card dl{display:grid;grid-template-columns:1fr auto;gap:6px 12px;margin:14px 0 0;padding-top:12px;border-top:1px solid var(--line);font-size:13.5px}
+.card dt{color:var(--ink-2)}
+.card dd{margin:0;font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.card p{margin:12px 0 0;font-size:13px;color:var(--ink-2);line-height:1.5}
 
-/* expiries */
-.exps{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
-.exps button{flex:none;border:1px solid var(--line);background:var(--sunk);border-radius:8px;padding:6px 10px;text-align:left;line-height:1.2}
-.exps button small{display:block;font-family:var(--f-num);font-size:11px;color:var(--muted)}
-.exps button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+/* live numbers strip */
+.strip{border-bottom:1px solid var(--line);background:var(--bg-2)}
+.strip .wrap{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
+.strip div.s{padding:26px 0 24px;border-left:1px solid var(--line);padding-left:22px}
+.strip div.s:first-child{border-left:0;padding-left:0}
+.strip b{display:block;font-family:var(--f-display);font-weight:600;font-size:clamp(26px,3vw,36px);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.strip span{font-size:13px;color:var(--muted)}
 
-/* chain */
-.tw{overflow:auto;max-height:560px;border:1px solid var(--line);border-radius:8px}
-table.chain{border-collapse:collapse;width:100%;font-family:var(--f-num);font-size:12.5px;font-variant-numeric:tabular-nums}
-.chain th{position:sticky;top:0;background:var(--sunk);font-family:var(--f-ui);font-weight:600;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:7px 6px;border-bottom:1px solid var(--line);z-index:1}
-.chain th.side{color:var(--ink);text-align:center}
-.chain td{padding:0;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
-.chain td.k{text-align:center;background:var(--sunk);font-weight:600;padding:6px 10px;border-left:1px solid var(--line);border-right:1px solid var(--line)}
-.chain td.k small{display:block;font-weight:400;color:var(--muted);font-size:10.5px}
-.chain td.g{color:var(--muted);padding:6px 8px}
-.chain td.itm{background:var(--itm)}
-.chain tr.atm td.k{background:var(--accent-soft);color:var(--accent)}
-.q{display:block;width:100%;border:0;background:none;padding:6px 8px;text-align:right;font-family:var(--f-num)}
-.q.bid:hover{background:var(--loss-soft);color:var(--loss)}
-.q.ask:hover{background:var(--gain-soft);color:var(--gain)}
-.q.bid{color:var(--loss)} .q.ask{color:var(--gain)}
-.basic .pro-only{display:none!important}
+/* sections */
+.sec{padding:110px 0}
+.sec + .sec{border-top:1px solid var(--line)}
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:64px;align-items:center}
+.split.flip .copy{order:2}
+.copy p{margin:18px 0 0;max-width:46ch;font-size:17px;color:var(--ink-2)}
+.copy h2{margin-top:16px}
+.demo{position:relative;padding:34px;border:1px solid var(--line);border-radius:22px;background:radial-gradient(90% 80% at 50% 0%, rgba(138,155,255,.08), transparent 70%), var(--panel);min-width:0}
+.demo::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background-image:radial-gradient(rgba(230,235,244,.06) 1px, transparent 1px);background-size:18px 18px;-webkit-mask-image:radial-gradient(70% 70% at 50% 50%, #000, transparent);mask-image:radial-gradient(70% 70% at 50% 50%, #000, transparent)}
+.demo > *{position:relative}
+.mini{border:1px solid var(--line-2);border-radius:14px;background:var(--bg-2);padding:16px 18px}
+.mini .h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:13px;color:var(--muted)}
+.mini .h b{color:var(--ink);font-family:var(--f-display);font-weight:600;font-size:15px}
+.sentence{margin:14px 0 0;padding:14px 16px;border-radius:12px;background:var(--accent-soft);font-size:15.5px;line-height:1.55}
+.sentence b{font-family:var(--f-num);font-weight:500;font-size:14px}
+.sentence .lead{display:block;font-weight:600;margin-bottom:6px}
+.payoff{display:block;width:100%;height:120px;margin-top:12px}
+.payoff text{font-family:var(--f-num);font-size:10px;fill:var(--muted)}
 
-/* presets */
-.chips{display:flex;flex-wrap:wrap;gap:6px}
-.chips button{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:5px 11px;font-size:12.5px}
-.chips button:hover{border-color:var(--accent)}
-.chips button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+/* size demo */
+.sizer{display:flex;align-items:stretch;border:1px solid var(--line-2);border-radius:12px;overflow:hidden;margin-top:14px}
+.sizer span{display:flex;align-items:center;justify-content:center;width:48px;background:var(--panel-2);font-size:20px;color:var(--ink-2)}
+.sizer output{flex:1;padding:10px 14px;text-align:right;font-family:var(--f-num);font-size:24px;font-weight:600;background:var(--bg)}
+.sizer em{display:flex;align-items:center;padding:0 14px 0 4px;font-style:normal;color:var(--muted);background:var(--bg);font-size:14px}
+.costrow{display:flex;justify-content:space-between;margin-top:14px;font-size:14px;color:var(--ink-2)}
+.costrow b{font-family:var(--f-num);font-weight:500;color:var(--ink);font-size:16px}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.compare div{border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:13px;color:var(--muted)}
+.compare b{display:block;font-family:var(--f-display);font-weight:600;font-size:20px;color:var(--ink);letter-spacing:-.02em}
+.compare div.us{border-color:var(--accent);background:var(--accent-soft)}
 
-/* explain */
-.explain{background:var(--accent-soft);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
-.explain p{margin:0;max-width:65ch}
-.explain .lead{font-size:15px;font-weight:600}
+/* levels */
+.head{max-width:720px}
+.head p{margin:18px 0 0;font-size:17px;color:var(--ink-2)}
+.levels{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:48px}
+.lv{position:relative;display:flex;flex-direction:column;gap:12px;padding:24px;border:1px solid var(--line);border-radius:18px;background:var(--panel)}
+.lv .n{font-family:var(--f-num);font-size:12px;color:var(--accent);letter-spacing:.08em}
+.lv h3{font-size:24px;letter-spacing:-.025em}
+.lv p{margin:0;font-size:14.5px;color:var(--ink-2)}
+.lv svg{width:100%;height:70px}
+.lv ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.lv li{font-size:12.5px;padding:3px 10px;border-radius:999px;border:1px solid var(--line-2);color:var(--ink-2)}
+.lv .needs{margin-top:auto;padding-top:12px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+.facts{display:flex;flex-wrap:wrap;gap:10px 28px;margin-top:28px;font-size:14px;color:var(--ink-2)}
+.facts span::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-right:10px;vertical-align:2px}
 
-/* chart */
-.chartbox{position:relative}
-#chart{display:block;width:100%;height:270px}
-#chart text{font-family:var(--f-num);font-size:10.5px;fill:var(--muted)}
-.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-family:var(--f-num);font-size:11.5px;padding:6px 8px;border-radius:6px;white-space:nowrap;transform:translate(-50%,-110%)}
-.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted);align-items:center}
-.sw{display:inline-block;width:18px;height:0;border-top:2px solid var(--ink);vertical-align:middle;margin-right:6px}
-.sw.t0{border-top:2px dashed var(--amber)}
-.slider{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted);flex-wrap:wrap}
-.slider input{flex:1;min-width:140px;accent-color:var(--accent)}
+/* guard rails */
+.rails{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:48px}
+.rail{display:flex;flex-direction:column;gap:14px;padding:24px;border:1px solid var(--line);border-radius:18px;background:var(--panel)}
+.rail h3{font-size:20px;letter-spacing:-.02em}
+.rail p{margin:0;font-size:14.5px;color:var(--ink-2)}
+.mock{border:1px solid var(--line-2);border-radius:12px;padding:12px;background:var(--bg-2);display:flex;flex-direction:column;gap:8px;font-size:12.5px}
+.mock .warn{border:1px solid var(--amber);border-radius:8px;padding:8px 10px;color:var(--ink-2)}
+.mock .warn b{color:var(--amber)}
+.mock .cta{border-radius:8px;padding:9px 12px;text-align:center;font-weight:700;background:var(--amber);color:var(--bg)}
+.mock .fix{border:1px solid var(--loss);border-radius:8px;padding:8px 10px;color:var(--ink-2)}
+.mock .fix b{color:var(--loss)}
+.mock .fx{display:flex;flex-wrap:wrap;gap:6px}
+.mock .fx span{border:1px solid var(--line-2);border-radius:6px;padding:4px 8px}
+.mock .fx span.go{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.mock code{font-family:var(--f-num);font-size:12px;color:var(--ink-2);display:flex;justify-content:space-between;gap:8px}
+.mock code b{font-weight:500;color:var(--gain)}
 
-/* stats */
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden}
-.stats div{background:var(--panel);padding:8px 10px}
-.stats span{display:block;font-size:11px;color:var(--muted);letter-spacing:.04em}
-.stats b{font-family:var(--f-num);font-weight:500;font-size:14px}
+/* scenario demo */
+.grid{width:100%;border-collapse:collapse;font-family:var(--f-num);font-size:13px;font-variant-numeric:tabular-nums;margin-top:12px}
+.grid th{font-family:var(--f-ui);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;text-align:right;padding:6px 8px}
+.grid th:first-child,.grid td:first-child{text-align:left}
+.grid td{padding:7px 8px;text-align:right;border-top:1px solid var(--line)}
+.grid td.l{color:var(--muted)}
+.greeks{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;margin-top:14px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--line)}
+.greeks div{background:var(--bg-2);padding:8px 10px;font-size:11.5px;color:var(--muted)}
+.greeks b{display:block;font-family:var(--f-num);font-weight:500;font-size:13.5px;color:var(--ink)}
 
-/* legs */
-.legs{display:flex;flex-direction:column;gap:6px}
-.leg{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto auto;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--sunk)}
-.side{border:0;border-radius:6px;padding:3px 8px;font-weight:700;font-size:11px;letter-spacing:.06em}
-.side.b{background:var(--gain-soft);color:var(--gain)} .side.s{background:var(--loss-soft);color:var(--loss)}
-.leg input{width:78px;border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:4px 6px;font-family:var(--f-num);font-size:12.5px}
-.leg .desc{font-weight:600;font-size:13px;min-width:0}
-.leg .desc small{display:block;font-weight:400;color:var(--muted);font-size:11.5px}
-.x{border:0;background:none;color:var(--muted);font-size:18px;line-height:1;padding:2px 6px}
-.x:hover{color:var(--loss)}
-.empty{font-size:13px;color:var(--muted);border:1px dashed var(--line);border-radius:8px;padding:14px;text-align:center}
+/* close */
+.close{padding:120px 0;text-align:center;border-top:1px solid var(--line);background:radial-gradient(50% 80% at 50% 100%, rgba(138,155,255,.12), transparent 70%), var(--bg)}
+.close h2{font-size:clamp(40px,5.5vw,72px);letter-spacing:-.045em}
+.close p{margin:18px auto 30px;max-width:52ch;color:var(--ink-2);font-size:17px}
+footer{border-top:1px solid var(--line);padding:30px 0 40px;font-size:13px;color:var(--muted)}
+footer .wrap{display:flex;flex-wrap:wrap;gap:12px 28px;align-items:flex-start;justify-content:space-between}
+footer p{margin:0;max-width:70ch}
+footer nav{display:flex;gap:18px}
 
-/* ticket */
-.rows{display:flex;flex-direction:column}
-.row{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
-.row:last-child{border-bottom:0}
-.row span{color:var(--muted)}
-.row b{font-family:var(--f-num);font-weight:500}
-.row.total b{font-size:16px;font-weight:600}
-/* strategies grouped by level */
-.pgroups{display:flex;flex-direction:column;gap:8px}
-.pg{display:flex;flex-direction:column;gap:6px;padding:8px 10px;border:1px solid var(--line);border-radius:8px}
-.pg.locked{background:var(--sunk)}
-.pg.locked .chips button{color:var(--muted)}
-.pgh{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;font-size:12.5px}
-.pgh small{flex-basis:100%;color:var(--muted);font-size:11.5px}
-.pgh em{font-style:normal;font-size:11.5px;font-weight:600}
-.pgh em.ok{color:var(--gain)}
-.pgh em.no{color:var(--muted)}
-.pgroups .fine{margin:0}
-/* blocked order: what is wrong and how to fix it */
-.fixbox{border:1px solid var(--loss);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;font-size:12.5px}
-.fixbox b{color:var(--loss)}
-.fixrow{display:flex;flex-direction:column;gap:6px;padding-top:6px;border-top:1px solid var(--line)}
-.fixrow span{font-weight:600}
-.fixbtns{display:flex;flex-wrap:wrap;gap:6px}
-.fixbtns button{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:5px 10px;font-size:12.5px}
-.fixbtns button:hover{border-color:var(--accent);color:var(--accent)}
-.fixbtns button.go{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
-/* ticket size + large-order guard */
-.sizebox{display:flex;flex-direction:column;gap:6px}
-.sizebox label{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.sizerow{display:flex;align-items:stretch;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--sunk)}
-.sizerow input{flex:1;min-width:0;border:0;background:var(--panel);color:var(--ink);font-family:var(--f-num);font-size:18px;font-weight:600;padding:8px 10px;text-align:right}
-.sizerow input:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-.sizerow .unit{display:flex;align-items:center;padding:0 10px 0 4px;background:var(--panel);color:var(--muted);font-size:13px}
-.step{border:0;background:var(--sunk);width:44px;font-size:18px;font-weight:600;color:var(--ink)}
-.step:hover{background:var(--accent-soft);color:var(--accent)}
-.sizehint{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 8px}
-.risk{border:1px solid var(--amber);border-radius:8px;padding:10px 12px;font-size:12.5px;display:flex;flex-direction:column;gap:4px}
-.risk.stop{border-color:var(--loss)}
-.risk b{color:var(--amber)}
-.risk.stop b{color:var(--loss)}
-.primary.warnbtn{background:var(--amber);color:var(--bg)}
-.adj{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12.5px;padding-top:6px;border-top:1px solid var(--line)}
-.adj .ghost b{font-family:var(--f-num);font-weight:500}
-/* appropriateness: ticket area */
-.access{display:flex;flex-direction:column;gap:8px;font-size:12.5px}
-.access:empty{display:none}
-.access .box{border:1px solid var(--amber);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
-.access .box.bad{border-color:var(--loss)}
-.lvl{display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap}
-.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 10px;font-weight:600;font-size:12px;background:var(--accent-soft);color:var(--accent)}
-.chip.warn{background:var(--loss-soft);color:var(--loss)}
-.link{border:0;background:none;padding:0;color:var(--accent);font-size:12.5px;text-decoration:underline;text-underline-offset:2px}
-.need{color:var(--loss)}
-.note{color:var(--amber)}
-.lk{margin-left:6px;font-size:10.5px;font-weight:600;letter-spacing:.04em;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:0 6px}
-.chips button[aria-pressed="true"] .lk{color:var(--on-accent);border-color:currentColor}
-details.rec summary{cursor:pointer;color:var(--muted)}
-details.rec dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;margin:8px 0 6px}
-details.rec dt{color:var(--muted)}
-details.rec dd{margin:0;font-family:var(--f-num);font-size:12px;overflow-wrap:anywhere}
-
-/* accounts */
-.auth{display:flex;align-items:center;gap:10px;font-size:12.5px;min-width:0}
-.auth:empty{display:none}
-.auth .who{color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.btn2.sm{padding:6px 12px;font-size:13px}
-.field{display:flex;flex-direction:column;gap:6px}
-.field label{font-weight:600;font-size:13px}
-.field input{font:inherit;font-size:15px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink)}
-.field input[aria-invalid="true"]{border-color:var(--loss)}
-.saved{font-size:11.5px;color:var(--muted)}
-.pos-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12.5px}
-
-/* appropriateness: dialog */
-dialog#signin{border:1px solid var(--line);border-radius:14px;padding:0;background:var(--panel);color:var(--ink);width:min(460px,calc(100% - 32px))}
-dialog#signin[open]{display:flex;flex-direction:column}
-dialog#signin::backdrop{background:rgba(8,14,20,.55)}
-dialog#assess{border:1px solid var(--line);border-radius:14px;padding:0;background:var(--panel);color:var(--ink);width:min(640px,calc(100% - 32px));max-height:min(88vh,900px);overflow:hidden}
-dialog#assess[open]{display:flex;flex-direction:column}
-dialog#assess::backdrop{background:rgba(8,14,20,.55)}
-.as-body{padding:20px 22px;display:flex;flex-direction:column;gap:14px;overflow:auto;min-height:0}
-.as-body h2{margin:0;font-size:20px;letter-spacing:-.01em;text-wrap:balance}
-.as-body h2:focus{outline:none}
-.as-body h3{margin:4px 0 0;font-size:14px}
-.as-body p{margin:0;max-width:65ch}
-.as-body ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
-.as-step{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
-.as-body fieldset{border:1px solid var(--line);border-radius:10px;padding:10px 12px 12px;margin:0;display:flex;flex-direction:column;gap:2px;min-width:0}
-.as-body fieldset.missing{border-color:var(--loss);box-shadow:0 0 0 1px var(--loss)}
-.as-body legend{font-weight:600;padding:0 4px;max-width:100%}
-.as-body legend small{display:block;font-weight:400;color:var(--muted)}
-.opt{display:flex;gap:10px;align-items:flex-start;padding:6px 8px;border-radius:8px;cursor:pointer}
-.opt:hover{background:var(--sunk)}
-.opt input{margin-top:3px;accent-color:var(--accent);flex:none}
-.opt.dk{color:var(--muted)}
-.as-err{color:var(--loss);font-size:12.5px}
-.as-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 22px;border-top:1px solid var(--line);background:var(--sunk)}
-.as-foot .btns{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
-.btn2{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:10px 14px;font-weight:600;font-size:14px}
-.btn2:hover{border-color:var(--ink)}
-.warnbox{border:2px solid var(--loss);background:var(--loss-soft);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px}
-.warnbox b{color:var(--loss);font-size:15px}
-.levels{display:flex;flex-direction:column;gap:6px}
-.levels > div{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 10px;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
-.levels > div.on{border-color:var(--gain);background:var(--gain-soft)}
-.levels .st{font-family:var(--f-num);font-size:11px;font-weight:600;grid-row:span 2;padding-top:2px}
-.levels .on .st{color:var(--gain)}
-.levels .off .st{color:var(--muted)}
-.levels small{color:var(--muted)}
-.review{display:flex;flex-direction:column;gap:10px}
-.review > div{border-left:3px solid var(--loss);padding:2px 0 2px 10px;display:flex;flex-direction:column;gap:3px}
-.review small{color:var(--muted)}
-.primary{border:0;background:var(--accent);color:var(--on-accent);border-radius:8px;padding:11px 14px;font-weight:600;font-size:14px}
-.primary:disabled{opacity:.45;cursor:not-allowed}
-.msg{font-size:12.5px;min-height:1em}
-.msg.ok{color:var(--gain)} .msg.err{color:var(--loss)}
-.fine{font-size:11.5px;color:var(--muted);margin:0}
-
-/* lower */
-.lower{display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
-@media (min-width:980px){.lower{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
-.scen{border-collapse:collapse;width:100%;font-family:var(--f-num);font-size:12.5px}
-.scen th{font-family:var(--f-ui);font-size:11px;color:var(--muted);font-weight:600;padding:6px 8px;text-align:right;letter-spacing:.04em}
-.scen td{padding:6px 8px;text-align:right;border-top:1px solid var(--line)}
-.scen td.lab{color:var(--muted)}
-.pos{display:flex;flex-direction:column;gap:8px}
-.pcard{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
-.pcard .top2{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
-.pcard .top2 b{font-size:13.5px}
-.pcard small{color:var(--muted);font-size:11.5px}
-.ghost{border:1px solid var(--line);background:none;border-radius:6px;padding:4px 10px;font-size:12px}
-.ghost:hover{border-color:var(--loss);color:var(--loss)}
-@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+@media (max-width:980px){
+  .nav nav{display:none}
+  .hero{padding:120px 0 60px}
+  .hero .wrap{grid-template-columns:minmax(0,1fr)}
+  .hero::after{background:linear-gradient(180deg, rgba(7,11,20,.55), var(--bg) 85%)}
+  .card{justify-self:start}
+  .split,.split.flip{grid-template-columns:minmax(0,1fr);gap:36px}
+  .split.flip .copy{order:0}
+  .levels,.rails{grid-template-columns:minmax(0,1fr)}
+  .strip .wrap{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .strip div.s:nth-child(3){border-left:0;padding-left:0}
+  .strip div.s:nth-child(n+3){border-top:1px solid var(--line)}
+  .sec{padding:80px 0}
+}
+@media (max-width:520px){
+  .live{display:none}
+  .demo{padding:18px}
+  .greeks{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .nav .btn.sm{margin-left:auto}
+}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}html{scroll-behavior:auto}}
 </style>
-<!--artifact-head-end-->
 </head>
 <body>
-<!--artifact-body-start-->
-<div class="wrap" id="app">
-  <header class="top">
-    <div class="brand"><b>Strikeline</b><span>Options · Demo</span></div>
-    <div class="seg" role="group" aria-label="Underlying" id="useg">
-      <button data-u="BTC" aria-pressed="true">BTC</button><button data-u="ETH" aria-pressed="false">ETH</button>
-    </div>
-    <div class="spot"><span class="px" id="spot">—</span><span class="chg" id="chg"></span></div>
-    <span class="feed" id="feed" data-state="loading" role="status"><span class="dot"></span><span id="snap">Loading Deribit data…</span></span>
-    <div class="spacer"></div>
-    <div class="seg" role="group" aria-label="View mode" id="mseg">
-      <button data-m="basic" aria-pressed="false">Basic</button><button data-m="pro" aria-pressed="true">Pro</button>
-    </div>
-    <div class="acct">
-      <div>Demo cash<b id="cash">—</b></div>
-      <div>Equity<b id="equity">—</b></div>
-    </div>
-    <div class="auth" id="auth"></div>
-  </header>
-  <p class="notice" id="notice">Loading Deribit option quotes…</p>
 
-  <main class="grid">
-    <section class="panel">
-      <div class="ph"><h2>Option chain</h2><span class="sub" id="chainsub"></span></div>
-      <div class="exps" id="exps"></div>
-      <div class="tw"><table class="chain" id="chain"></table></div>
-      <p class="fine">Tap an ask price to buy, a bid price to sell. Contract size starts at <span id="minq"></span>, so a position can cost a few dollars. Hover a strike to see open interest.</p>
-    </section>
-
-    <section class="panel">
-      <div class="ph"><h2>Strategy</h2><span class="sub" id="stratname">Custom</span></div>
-      <div class="pgroups" id="presets"></div>
-      <div class="explain" id="explain"></div>
-      <div class="chartbox"><svg id="chart" role="img" aria-label="Profit and loss chart"></svg><div class="tip" id="tip" hidden></div></div>
-      <div class="legend"><span><i class="sw"></i>At expiry (<span id="expl"></span>)</span><span class="pro-only"><i class="sw t0"></i>Value on day <span id="t0l">0</span></span></div>
-      <div class="slider pro-only"><label for="tday">Days forward</label><input type="range" id="tday" min="0" max="10" step="1" value="0"><span class="num" id="tdayv">Today</span></div>
-      <div class="stats" id="stats"></div>
-      <div class="legs" id="legs"></div>
-      <div class="stats pro-only" id="greeks"></div>
-    </section>
-
-    <aside class="panel ticket">
-      <div class="ph"><h2>Order ticket</h2><span class="sub">Limit at shown prices</span></div>
-      <div class="sizebox" id="sizebox" hidden>
-        <label for="tqty">Size</label>
-        <div class="sizerow">
-          <button class="step" type="button" data-sz="down" aria-label="Decrease size">−</button>
-          <input id="tqty" type="number" inputmode="decimal" autocomplete="off">
-          <span class="unit" id="tunit">BTC</span>
-          <button class="step" type="button" data-sz="up" aria-label="Increase size">+</button>
-        </div>
-        <div class="sizehint" id="sizehint"></div>
-      </div>
-      <div class="rows" id="ticket"></div>
-      <div class="risk" id="risk" role="status" hidden></div>
-      <div class="access" id="access"></div>
-      <button class="primary" id="submit">Place demo order</button>
-      <div class="msg" id="msg" role="status"></div>
-      <p class="fine">Fees estimated at 0.03% of underlying value per leg, capped at 12.5% of the option price. Required capital equals the maximum loss for defined-risk strategies.</p>
-    </aside>
-  </main>
-
-  <section class="lower">
-    <div class="panel pro-only">
-      <div class="ph"><h2>Scenario analysis</h2><span class="sub" id="scensub"></span></div>
-      <div class="tw" style="max-height:none"><table class="scen" id="scen"></table></div>
-      <p class="fine">P&amp;L if the price moves and implied volatility shifts by the given points, valued on the day set by the slider.</p>
-    </div>
-    <div class="panel">
-      <div class="ph"><h2>Open positions</h2><span class="sub" id="possub"></span></div>
-      <div class="pos" id="pos"></div>
-    </div>
-  </section>
-</div>
-
-<dialog id="signin" aria-labelledby="siTitle">
-  <form class="as-body" id="siForm" novalidate>
-    <h2 id="siTitle" tabindex="-1">Sign in to Strikeline</h2>
-    <p id="siText">We email you a sign-in link, so there is no password to remember. Your knowledge check, demo balance and positions are saved to your account.</p>
-    <div class="field" id="siField">
-      <label for="siEmail">Email</label>
-      <input id="siEmail" name="email" type="email" autocomplete="email" inputmode="email" required>
-    </div>
-    <p class="as-err" id="siErr" role="alert"></p>
-  </form>
-  <div class="as-foot"><span class="sub">Demo account. No real money.</span>
-    <div class="btns"><button class="btn2" type="button" id="siClose">Cancel</button><button class="primary" type="submit" form="siForm" id="siSend">Email me a link</button></div>
+<header class="nav" id="nav">
+  <div class="wrap">
+    <a class="brand" href="/"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#e6ebf4"/><path d="M16 6v20" stroke="#3b4ee0" stroke-width="1.6" stroke-dasharray="2 2.4"/><path d="M5 21h11l11-11" stroke="#070b14" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="16" cy="21" r="2.6" fill="#3b4ee0"/></svg>Strikeline</a>
+    <nav aria-label="Sections"><a href="#how">How it works</a><a href="#levels">Levels</a><a href="#safety">Guard rails</a><a href="#pro">Pro tools</a></nav>
+    <span class="live" id="livePill" title="Live index price from Deribit"><i></i><span id="livePx">Connecting to Deribit…</span></span>
+    <a class="btn sm" href="/app">Open the app</a>
   </div>
-</dialog>
+</header>
 
-<dialog id="assess" aria-labelledby="asTitle">
-  <div class="as-body" id="asBody"></div>
-  <div class="as-foot" id="asFoot"></div>
-</dialog>
+<main>
+<section class="hero" aria-labelledby="h1">
+  <canvas id="lines" aria-hidden="true"></canvas>
+  <div class="wrap">
+    <div class="hero-in">
+      <span class="pill"><i></i>Demo · live Deribit market data · paper money</span>
+      <h1 id="h1">Crypto options, in <span class="hl">plain words.</span></h1>
+      <p class="lede">Trade BTC and ETH options from 0.01 BTC. Every trade is explained in one sentence before you place it, and a short knowledge check unlocks strategies as you learn.</p>
+      <div class="actions"><a class="btn" href="/app">Open the app</a><a class="ghost" href="#levels">How levels work</a></div>
+    </div>
+    <aside class="card" aria-label="Live example">
+      <div class="top"><b id="exName">BTC call</b><span id="exExp">—</span></div>
+      <div class="big" id="exCost">—</div>
+      <div class="sub" id="exSub">for the smallest size, 0.01 BTC</div>
+      <dl>
+        <dt>Ask per 1 BTC</dt><dd id="exAsk">—</dd>
+        <dt>Most you can lose</dt><dd id="exLoss">—</dd>
+        <dt>Profit if BTC ends above</dt><dd id="exBe">—</dd>
+      </dl>
+      <p>A call gives you the right to buy BTC at the strike. If BTC stays below it, the option expires and you lose only what you paid.</p>
+    </aside>
+  </div>
+</section>
+
+<section class="strip" aria-label="Live market numbers">
+  <div class="wrap">
+    <div class="s"><b id="stBtc">—</b><span>BTC index, live</span></div>
+    <div class="s"><b id="stEth">—</b><span>ETH index, live</span></div>
+    <div class="s"><b id="stCount">—</b><span>option prices on screen</span></div>
+    <div class="s"><b>15 s</b><span id="stTime">refresh from Deribit</span></div>
+  </div>
+</section>
+
+<section class="sec" id="how">
+  <div class="wrap split">
+    <div class="copy">
+      <span class="eyebrow">Plain words</span>
+      <h2>Every trade, <span class="hl">in one sentence.</span></h2>
+      <p>Pick a strategy and Strikeline writes out what it means: where you make money, what you pay today, and the most you can lose. The payoff chart, breakevens and Greeks are one click away when you want them.</p>
+    </div>
+    <div class="demo">
+      <div class="mini">
+        <div class="h"><b>Bull call spread · BTC</b><span id="spExp">—</span></div>
+        <svg class="payoff" id="spChart" viewBox="0 0 320 120" preserveAspectRatio="none" role="img" aria-label="Payoff of a bull call spread"></svg>
+        <div class="sentence" id="spText">Loading live prices…</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="wrap split flip">
+    <div class="copy">
+      <span class="eyebrow">Start small</span>
+      <h2>From <span class="hl" id="fromCost">a few dollars</span>, not thousands.</h2>
+      <p>A standard stock option covers 100 shares, so even a simple trade can cost hundreds. On Strikeline the smallest size is 0.01 BTC or 0.1 ETH. You learn how options behave with real prices before you put real size behind it.</p>
+    </div>
+    <div class="demo">
+      <div class="mini">
+        <div class="h"><b id="smName">BTC call</b><span id="smExp">—</span></div>
+        <div class="sizer" aria-hidden="true"><span>−</span><output id="smQty">0.01</output><em>BTC</em><span>+</span></div>
+        <div class="costrow"><span>You pay</span><b id="smCost">—</b></div>
+        <div class="compare">
+          <div><b>100 shares</b>one standard stock option</div>
+          <div class="us"><b>0.01 BTC</b>smallest Strikeline size</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="levels">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">Knowledge check · MiFID II</span>
+      <h2>Levels that <span class="hl">grow with you.</span></h2>
+      <p>EU rules ask brokers to check that complex products fit the client. Strikeline turns that into seven short questions. Your answers set your level, and each level unlocks the strategies you have shown you understand.</p>
+    </div>
+    <div class="levels">
+      <article class="lv">
+        <span class="n">LEVEL 1</span><h3>Buy options</h3>
+        <svg viewBox="0 0 200 70" aria-hidden="true"><line x1="0" y1="50" x2="200" y2="50" stroke="#1c2639"/><path d="M4 58H96L196 8" stroke="#8a9bff" stroke-width="2.5" fill="none"/></svg>
+        <p>The most you can lose is the premium you pay.</p>
+        <ul><li>Long call</li><li>Long put</li><li>Straddle</li><li>Strangle</li></ul>
+        <div class="needs">Unlocks with 3 of the 4 basic questions right.</div>
+      </article>
+      <article class="lv">
+        <span class="n">LEVEL 2</span><h3>Spreads</h3>
+        <svg viewBox="0 0 200 70" aria-hidden="true"><line x1="0" y1="40" x2="200" y2="40" stroke="#1c2639"/><path d="M4 58H70L130 14H196" stroke="#8a9bff" stroke-width="2.5" fill="none"/></svg>
+        <p>You sell options too, but every one is covered by an option you buy, so the maximum loss is known up front.</p>
+        <ul><li>Bull call spread</li><li>Bear put spread</li><li>Iron condor</li></ul>
+        <div class="needs">Unlocks with the spread question right.</div>
+      </article>
+      <article class="lv">
+        <span class="n">LEVEL 3</span><h3>Uncovered selling</h3>
+        <svg viewBox="0 0 200 70" aria-hidden="true"><line x1="0" y1="22" x2="200" y2="22" stroke="#1c2639"/><path d="M4 66L104 14H196" stroke="#8a9bff" stroke-width="2.5" fill="none"/></svg>
+        <p>Selling without protection. Losses can be far larger than the premium you receive.</p>
+        <ul><li>Short put</li><li>Short call</li><li>Short strangle</li></ul>
+        <div class="needs">Unlocks with both selling questions right and real trading experience.</div>
+      </article>
+    </div>
+    <div class="facts"><span>7 questions, about 2 minutes</span><span>"I don't know" is always an answer</span><span>3 attempts per 24 hours</span><span>Scored on the server</span><span>Valid for 12 months</span></div>
+  </div>
+</section>
+
+<section class="sec" id="safety">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">Guard rails</span>
+      <h2>Mistakes are caught <span class="hl">before they cost you.</span></h2>
+    </div>
+    <div class="rails">
+      <article class="rail">
+        <h3>Large orders need a second click</h3>
+        <p>When an order puts a quarter of your cash at risk, or its loss has no limit, the first click shows the risk. Only the second one places it.</p>
+        <div class="mock" aria-hidden="true"><div class="warn"><b>Large order.</b> This order puts $2,480 at risk, 25% of your demo cash.</div><div class="cta">Confirm order · $2,480 at risk</div></div>
+      </article>
+      <article class="rail">
+        <h3>Blocked orders come with fixes</h3>
+        <p>If an order is above your level, the ticket names the leg that is the problem and fixes it in one click.</p>
+        <div class="mock" aria-hidden="true"><div class="fix"><b>Sell put 77,000</b> has no protection.</div><div class="fx"><span class="go">Add protection: buy put 75,000</span><span>Buy it instead</span><span>Remove it</span></div></div>
+      </article>
+      <article class="rail">
+        <h3>Checked on the server, not just the page</h3>
+        <p>Your level, cash and every order are checked in the database. Changing the page in the browser cannot unlock anything.</p>
+        <div class="mock" aria-hidden="true"><code>level ≥ required <b>checked</b></code><code>cash ≥ capital <b>checked</b></code><code>3 attempts / 24 h <b>checked</b></code><code>order logged to record <b>checked</b></code></div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="pro">
+  <div class="wrap split">
+    <div class="copy">
+      <span class="eyebrow">Pro tools</span>
+      <h2>Greeks and scenarios, <span class="hl">when you want them.</span></h2>
+      <p>Switch to Pro to see delta, gamma, theta and vega for the whole position, slide time forward to watch decay, and test what happens if the price jumps and volatility moves at the same time.</p>
+    </div>
+    <div class="demo">
+      <div class="mini">
+        <div class="h"><b>Straddle · 0.05 BTC</b><span id="scExp">—</span></div>
+        <table class="grid" id="scGrid" aria-label="Profit or loss of a straddle under price and volatility moves"></table>
+        <div class="greeks" id="scGreeks"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="close">
+  <div class="wrap">
+    <h2>See it <span class="hl">live.</span></h2>
+    <p>Open the app, take the knowledge check and place your first paper trade at real Deribit prices. No real money, no card, no download.</p>
+    <a class="btn" href="/app">Open Strikeline</a>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Strikeline is a demo for education and presentation. Orders are paper trades and are not sent to any exchange. Nothing here is investment advice. Market data from Deribit's public API, shown in USD.</p>
+    <nav aria-label="Footer"><a href="/app">App</a><a href="https://github.com/erozucan006/strikeline" target="_blank" rel="noopener">Code</a></nav>
+  </div>
+</footer>
 
 <script>
 (function(){
 "use strict";
-/* ---------- config ---------- */
-const U = {
-  BTC:{minQ:0.01, defQ:0.05, tick:5,   dp:0, qdp:2},
-  ETH:{minQ:0.1,  defQ:1,    tick:0.1, dp:1, qdp:1}
-};
-const START_CASH = 10000;
-const DAY = 864e5;
-let D = null; // Deribit snapshot
+const $=id=>document.getElementById(id);
+const DAY=864e5;
+const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-/* ---------- math (Black-76 on the expiry forward, r = 0) ---------- */
-function ncdf(x){const t=1/(1+0.2316419*Math.abs(x));const d=0.3989422804014327*Math.exp(-x*x/2);
-  const p=d*t*(0.31938153+t*(-0.356563782+t*(1.781477937+t*(-1.821255978+t*1.330274429))));return x>0?1-p:p;}
+/* ---------- math (Black-76 on the expiry forward) ---------- */
+function ncdf(x){const t=1/(1+0.2316419*Math.abs(x)),d=0.3989422804014327*Math.exp(-x*x/2),p=d*t*(0.31938153+t*(-0.356563782+t*(1.781477937+t*(-1.821255978+t*1.330274429))));return x>0?1-p:p;}
 function npdf(x){return 0.3989422804014327*Math.exp(-x*x/2);}
-function bs(F,K,T,v,type){
-  if(T<=0||v<=0){const intr=Math.max(0,type==="C"?F-K:K-F);return{price:intr,delta:type==="C"?(F>K?1:0):(F<K?-1:0),gamma:0,theta:0,vega:0};}
-  const sq=Math.sqrt(T),d1=(Math.log(F/K)+0.5*v*v*T)/(v*sq),d2=d1-v*sq;
-  const price=type==="C"?F*ncdf(d1)-K*ncdf(d2):K*ncdf(-d2)-F*ncdf(-d1);
-  return{price,delta:type==="C"?ncdf(d1):ncdf(d1)-1,gamma:npdf(d1)/(F*v*sq),theta:-(F*npdf(d1)*v)/(2*sq)/365,vega:F*npdf(d1)*sq/100};
-}
-function rt(x,t){return Math.round(x/t)*t;}
-const daysTo=t=>(t-Date.now())/DAY;
-function expOf(u,code){return D[u].exps.find(e=>e.code===code);}
-// row: [K, cBid,cAsk,cMark,cIV,cOI, pBid,pAsk,pMark,pIV,pOI]
-// The chain refreshes every few seconds; an expiry or strike can drop out (expired, or moved
-// out of the shown range), so the last quote seen for each contract is kept for open legs.
-const lastSeen={},fwdBasis={};
-function real(u,code,K,type){
-  const key=u+code+K+type,e=expOf(u,code),r=e&&e.s.find(x=>x[0]===K);
-  if(r){const o=type==="C"?1:6;lastSeen[key]={bid:r[o],ask:r[o+1],mark:r[o+2],iv:r[o+3]/100,oi:r[o+4]};}
-  return lastSeen[key]||{bid:null,ask:null,mark:null,iv:0.5,oi:0};
-}
-function fwd(u,code,Sx,rem){
-  const e=expOf(u,code);if(e)fwdBasis[u+code]={b:e.F/D[u].index,t:e.t};
-  const fb=fwdBasis[u+code];if(!fb)return Sx;
-  const d0=Math.max(daysTo(fb.t),1e-3);return Sx*(1+(fb.b-1)*Math.max(0,Math.min(rem,d0))/d0);
-}
-function quote(u,type,K,code,Sx,t){
-  const rl=real(u,code,K,type),e=expOf(u,code),d=daysTo(e?e.t:t);
-  if(d<=0){const v=Math.max(0,type==="C"?Sx-K:K-Sx);return{bid:v,ask:v,mid:v,iv:rl.iv,oi:0,g:bs(Sx,K,0,0,type)};}
-  const g=bs(fwd(u,code,Sx,d),K,d/365,rl.iv,type);
-  return{bid:rl.bid,ask:rl.ask,mid:rl.mark??g.price,iv:rl.iv,oi:rl.oi,g};
-}
+function bs(F,K,T,v,c){if(T<=0||v<=0)return{p:Math.max(0,c?F-K:K-F),d:c?(F>K?1:0):(F<K?-1:0),g:0,th:0,ve:0};
+  const s=Math.sqrt(T),d1=(Math.log(F/K)+v*v*T/2)/(v*s),d2=d1-v*s;
+  return{p:c?F*ncdf(d1)-K*ncdf(d2):K*ncdf(-d2)-F*ncdf(-d1),d:c?ncdf(d1):ncdf(d1)-1,g:npdf(d1)/(F*v*s),th:-(F*npdf(d1)*v)/(2*s)/365,ve:F*npdf(d1)*s/100};}
 
 /* ---------- formatting ---------- */
-const fmtDate=t=>new Date(t).toLocaleDateString("en-GB",{day:"2-digit",month:"short",timeZone:"UTC"});
-const usd=(x,dp)=>{if(!isFinite(x))return "Unlimited";const d=dp??(Math.abs(x)>=1000?0:2);
-  return (x<0?"−$":"$")+Math.abs(x).toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d});};
+const usd=(x,dp)=>{const d=dp??(Math.abs(x)>=1000?0:2);return (x<0?"−$":"$")+Math.abs(x).toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d});};
 const sgn=(x,dp)=>(x>0?"+":"")+usd(x,dp);
-const px=(u,x)=>x==null?"—":x.toLocaleString("en-US",{minimumFractionDigits:U[u].dp,maximumFractionDigits:U[u].dp});
-const kfmt=k=>k.toLocaleString("en-US");
+const k=v=>Math.round(v).toLocaleString("en-US");
+const day=t=>new Date(t).toLocaleDateString("en-GB",{day:"numeric",month:"short",timeZone:"UTC"});
 
-/* ---------- state ---------- */
-const S={u:"BTC",spot:{},open:{},exp:"27NOV26",legs:[],preset:null,mode:"pro",tday:0,approved:false,cash:START_CASH,positions:[],nid:1};
-
-/* ---------- strategy math ---------- */
-function legQuote(l){return quote(l.u,l.type,l.K,l.e,S.spot[l.u],l.t);}
-function legEntry(l){const q=legQuote(l);return l.side>0?(q.ask??q.mid):(q.bid??q.mid);}
-function legVal(l,Sx,tday,vs){const rem=daysTo(l.t)-tday;if(rem<=1e-6)return Math.max(0,l.type==="C"?Sx-l.K:l.K-Sx);
-  return bs(fwd(l.u,l.e,Sx,rem),l.K,rem/365,real(l.u,l.e,l.K,l.type).iv+(vs||0),l.type).price;}
-function pnl(legs,Sx,tday,vs,entryOf){let s=0;for(const l of legs){s+=l.side*l.qty*(legVal(l,Sx,tday,vs)-entryOf(l));}return s;}
-function minDays(legs){return legs.length?Math.min(...legs.map(l=>daysTo(l.t))):0;}
-function fees(legs,entryOf){let f=0;for(const l of legs){const sp=S.spot[l.u];f+=Math.min(0.0003*sp*l.qty,0.125*entryOf(l)*l.qty);}return f;}
-function analyze(legs,entryOf){
-  const sp=S.spot[S.u],T=minDays(legs);
-  const f=x=>pnl(legs,x,T,0,entryOf);
-  let mx=-Infinity,mn=Infinity;const N=700;
-  for(let i=0;i<=N;i++){const x=sp*(0.005+i*(3/N));const v=f(x);if(v>mx)mx=v;if(v<mn)mn=v;}
-  const a=f(sp*3),b=f(sp*4);
-  if(b-a>1e-6*sp)mx=Infinity; if(a-b>1e-6*sp)mn=-Infinity;
-  const be=[];let prev=null,px0=null;
-  for(let i=0;i<=1200;i++){const x=sp*(0.2+i*(2.6/1200));const v=f(x);
-    if(prev!==null&&((prev<0&&v>=0)||(prev>0&&v<=0))){be.push(px0+(x-px0)*(-prev)/(v-prev));}prev=v;px0=x;}
-  const net=legs.reduce((s,l)=>s+l.side*l.qty*entryOf(l),0);
-  let g={delta:0,gamma:0,theta:0,vega:0};
-  for(const l of legs){const q=legQuote(l).g;for(const k in g)g[k]+=l.side*l.qty*q[k];}
-  const fe=fees(legs,entryOf);
-  let req;
-  if(isFinite(mn)) req=Math.max(0,-mn)+fe;
-  else{req=fe+Math.max(0,net);for(const l of legs)if(l.side<0){const otm=Math.max(0,l.type==="C"?l.K-sp:sp-l.K);req+=Math.max(0.15*sp-otm,0.10*sp)*l.qty;}}
-  return{mx,mn,be,net,g,fe,req,T};
-}
-
-/* ---------- presets ---------- */
-const PRESETS=[
- ["Long call",[["C",0,1]]],["Long put",[["P",0,1]]],
- ["Bull call spread",[["C",0,1],["C",2,-1]]],["Bear put spread",[["P",0,1],["P",-2,-1]]],
- ["Straddle",[["C",0,1],["P",0,1]]],["Strangle",[["C",2,1],["P",-2,1]]],
- ["Iron condor",[["P",-4,1],["P",-2,-1],["C",2,-1],["C",4,1]]],
- ["Short put",[["P",-2,-1]]],["Short call",[["C",2,-1]]],["Short strangle",[["C",2,-1],["P",-2,-1]]]
-];
-// Shown grouped by the options level each strategy needs.
-const LEVEL_GROUPS=[[1,"Buy options","Loss limited to the premium you pay"],[2,"Spreads","Every sold option is covered by one you buy"],[3,"Uncovered selling","Losses can exceed the premium you receive"]];
-function atmIdx(u,code){const e=expOf(u,code),F=fwd(u,code,S.spot[u],daysTo(e.t));let a=0;e.s.forEach((r,j)=>{if(Math.abs(r[0]-F)<Math.abs(e.s[a][0]-F))a=j;});return a;}
-function applyPreset(i){
-  const e=expOf(S.u,S.exp),a=atmIdx(S.u,S.exp),ks=e.s.map(r=>r[0]);
-  // Presets are written with wings 2 and 4 strikes out; narrow them when the chain is short
-  // on one side so no two legs land on the same strike.
-  const room=Math.min(a,ks.length-1-a),w=Math.max(1,Math.min(2,Math.floor(room/2)));
-  S.legs=PRESETS[i][1].map(([t,o,s])=>({id:S.nid++,u:S.u,type:t,K:ks[Math.max(0,Math.min(ks.length-1,a+o*w/2))],e:e.code,t:e.t,side:s,qty:U[S.u].defQ}));
-  S.preset=i;S.tday=0;renderLegs();renderAll();
-}
-
-/* ---------- DOM ---------- */
-const $=id=>document.getElementById(id);
-function setPressed(box,attr,val){box.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset[attr]===val)));}
-
-function renderHeader(){
-  const u=S.u,sp=S.spot[u],ch=sp/S.open[u]-1;
-  $("spot").textContent="$"+px(u,sp);
-  const c=$("chg");c.textContent=(ch>=0?"+":"")+(ch*100).toFixed(2)+"% since you opened";c.className="chg "+(ch>=0?"up":"down");
-  let val=0;for(const p of S.positions)for(const l of p.legs)val+=l.side*l.qty*legQuote(l).mid;
-  $("cash").textContent=usd(S.cash,2);$("equity").textContent=usd(S.cash+val,2);
-}
-function renderExp(){
-  $("exps").innerHTML=D[S.u].exps.map(e=>`<button data-c="${e.code}" aria-pressed="${e.code===S.exp}">${fmtDate(e.t)}<small>${Math.max(0,daysTo(e.t)).toFixed(1)}d</small></button>`).join("");
-}
-function renderChain(){
-  const u=S.u,sp=S.spot[u],e=expOf(u,S.exp),a=atmIdx(u,S.exp),F=fwd(u,S.exp,sp,daysTo(e.t));
-  let h=`<thead><tr><th class="side" colspan="3">Calls</th><th></th><th class="side" colspan="3">Puts</th></tr>
-  <tr><th class="pro-only" style="text-align:right">Δ</th><th style="text-align:right">Bid</th><th style="text-align:right">Ask</th><th style="text-align:center">Strike</th><th style="text-align:right">Bid</th><th style="text-align:right">Ask</th><th class="pro-only" style="text-align:right">Δ</th></tr></thead><tbody>`;
-  e.s.forEach((r,j)=>{
-    const k=r[0],c=quote(u,"C",k,S.exp,sp),p=quote(u,"P",k,S.exp,sp),ci=k<F?"itm":"",pi=k>F?"itm":"";
-    h+=`<tr class="${j===a?"atm":""}">
-     <td class="g pro-only ${ci}">${c.g.delta.toFixed(2)}</td>
-     <td class="${ci}"><button class="q bid" data-a="C,${k},-1" ${c.bid!=null?"":"disabled"} aria-label="Sell call ${k}">${px(u,c.bid)}</button></td>
-     <td class="${ci}"><button class="q ask" data-a="C,${k},1" ${c.ask!=null?"":"disabled"} aria-label="Buy call ${k}">${px(u,c.ask)}</button></td>
-     <td class="k" title="Open interest: calls ${c.oi}, puts ${p.oi} ${u}">${kfmt(k)}<small class="pro-only">${(c.iv*100).toFixed(1)}% IV</small></td>
-     <td class="${pi}"><button class="q bid" data-a="P,${k},-1" ${p.bid!=null?"":"disabled"} aria-label="Sell put ${k}">${px(u,p.bid)}</button></td>
-     <td class="${pi}"><button class="q ask" data-a="P,${k},1" ${p.ask!=null?"":"disabled"} aria-label="Buy put ${k}">${px(u,p.ask)}</button></td>
-     <td class="g pro-only ${pi}">${p.g.delta.toFixed(2)}</td></tr>`;
-  });
-  $("chain").innerHTML=h+"</tbody>";
-  $("chainsub").textContent=`${u}-${S.exp} · forward $${px(u,F)} · USD per 1 ${u}`;
-}
-function renderPresets(){
-  const rec=currentRecord(),assessed=rec&&!rec.expired,lv=userLevel();
-  $("presets").innerHTML=LEVEL_GROUPS.map(([n,name,note])=>{
-    const open=assessed&&lv>=n,state=!assessed?"":open?`<em class="ok">Open to you</em>`:`<em class="no">Locked · your level is ${lv}</em>`;
-    const chips=PRESETS.map((p,i)=>presetLevel(i)===n?`<button data-p="${i}" aria-pressed="${S.preset===i}">${p[0]}</button>`:"").join("");
-    return `<div class="pg${assessed&&!open?" locked":""}"><div class="pgh"><b>Level ${n} · ${name}</b>${state}<small>${note}</small></div><div class="chips">${chips}</div></div>`;
-  }).join("")+(assessed&&lv<3?`<p class="fine">Locked strategies still show their chart, so you can explore them. Your level decides what you can place.</p>`:"");
-  $("stratname").textContent=S.preset===null?(S.legs.length?"Custom":"No legs"):PRESETS[S.preset][0];
-}
-function renderLegs(){
-  $("msg").textContent="";
-  if(!S.legs.length){$("legs").innerHTML=`<div class="empty">Pick a strategy above or tap a price in the chain to add a leg.</div>`;return;}
-  $("legs").innerHTML=S.legs.map(l=>`<div class="leg" data-id="${l.id}">
-    <button class="side ${l.side>0?"b":"s"}" data-flip="${l.id}" aria-label="Switch buy or sell">${l.side>0?"BUY":"SELL"}</button>
-    <input type="number" id="q${l.id}" data-q="${l.id}" min="${U[l.u].minQ}" step="${U[l.u].minQ}" value="${l.qty}" aria-label="Quantity in ${l.u}">
-    <div class="desc">${l.type==="C"?"Call":"Put"} ${kfmt(l.K)}<small>${l.u} · ${fmtDate(l.t)}</small></div>
-    <span class="num" id="lp${l.id}"></span>
-    <button class="x" data-del="${l.id}" aria-label="Remove leg">×</button></div>`).join("");
-}
-function updateLegPrices(){for(const l of S.legs){const e=$("lp"+l.id);if(e)e.textContent="@ "+px(l.u,legEntry(l));}}
-
-function explain(A){
-  const u=S.u,lg=S.legs;if(!lg.length)return `<p>Add a leg to see what this trade means in plain words.</p>`;
-  const date=fmtDate(Math.min(...lg.map(l=>l.t)));
-  const pay=A.net>=0?`You pay <b class="num">${usd(A.net,2)}</b> today.`:`You receive <b class="num">${usd(-A.net,2)}</b> today.`;
-  const sp=S.spot[u],T=A.T,f=x=>pnl(lg,x,T,0,legEntry),be=A.be.map(x=>"$"+px(u,rt(x,1)));
-  let where="";
-  if(A.be.length===1){where=f(A.be[0]*1.05)>0?`You make money if ${u} is above <b class="num">${be[0]}</b> on ${date}.`:`You make money if ${u} is below <b class="num">${be[0]}</b> on ${date}.`;}
-  else if(A.be.length===2){const mid=f((A.be[0]+A.be[1])/2)>0;where=mid?`You make money if ${u} ends between <b class="num">${be[0]}</b> and <b class="num">${be[1]}</b> on ${date}.`:`You make money if ${u} ends below <b class="num">${be[0]}</b> or above <b class="num">${be[1]}</b> on ${date}.`;}
-  else if(!A.be.length){where=f(sp)>0?`This position profits across the whole price range at ${date}.`:`At these prices this position cannot finish in profit on ${date}.`;}
-  else where=`This position has ${A.be.length} breakeven points before ${date}.`;
-  const risk=isFinite(A.mn)?`The most you can lose is <b class="num">${usd(-A.mn,2)}</b>.`:`<b>Your possible loss is unlimited</b> if ${u} moves sharply against you.`;
-  const rew=isFinite(A.mx)?` The most you can make is <b class="num">${usd(A.mx,2)}</b>.`:` Your possible profit has no cap.`;
-  return `<p class="lead">${where}</p><p>${pay} ${risk}${rew}</p>`;
-}
-
-function renderStats(A){
-  const u=S.u,cells=[["Net premium",A.net>=0?"Debit "+usd(A.net,2):"Credit "+usd(-A.net,2)],["Max profit",isFinite(A.mx)?usd(A.mx,2):"Unlimited"],
-    ["Max loss",isFinite(A.mn)?usd(-A.mn,2):"Unlimited"],["Breakeven",A.be.length?A.be.map(x=>kfmt(Math.round(x))).join(" / "):"—"]];
-  $("stats").innerHTML=S.legs.length?cells.map(c=>`<div><span>${c[0]}</span><b>${c[1]}</b></div>`).join(""):"";
-  const g=A.g;
-  $("greeks").innerHTML=S.legs.length?[["Delta",g.delta.toFixed(3)+" "+u],["Gamma",g.gamma.toExponential(2)],["Theta / day",sgn(g.theta,2)],["Vega / 1 vol pt",sgn(g.vega,2)]]
-    .map(c=>`<div><span>${c[0]}</span><b>${c[1]}</b></div>`).join(""):"";
-}
-
-/* ---------- chart ---------- */
-let chartCache=null;
-function renderChart(A){
-  const svg=$("chart"),W=Math.max(280,svg.clientWidth||600),H=270,m={l:58,r:12,t:12,b:26};
-  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
-  const sp=S.spot[S.u],lg=S.legs;
-  if(!lg.length){svg.innerHTML=`<text x="${W/2}" y="${H/2}" text-anchor="middle">No position yet</text>`;chartCache=null;return;}
-  const ks=lg.map(l=>l.K);let lo=Math.min(sp*0.72,...ks.map(k=>k*0.92)),hi=Math.max(sp*1.28,...ks.map(k=>k*1.08));
-  const N=180,xs=[],e=[],t=[],tday=Math.min(S.tday,A.T);
-  for(let i=0;i<=N;i++){const x=lo+(hi-lo)*i/N;xs.push(x);e.push(pnl(lg,x,A.T,0,legEntry));t.push(pnl(lg,x,tday,0,legEntry));}
-  let ymin=Math.min(0,...e,...t),ymax=Math.max(0,...e,...t);const pad=(ymax-ymin)*0.08||1;ymin-=pad;ymax+=pad;
-  const X=x=>m.l+(x-lo)/(hi-lo)*(W-m.l-m.r),Y=y=>m.t+(ymax-y)/(ymax-ymin)*(H-m.t-m.b),y0=Y(0);
-  const line=a=>a.map((y,i)=>(i?"L":"M")+X(xs[i]).toFixed(1)+","+Y(y).toFixed(1)).join("");
-  const area=line(e)+`L${X(hi).toFixed(1)},${y0.toFixed(1)}L${X(lo).toFixed(1)},${y0.toFixed(1)}Z`;
-  const nice=(span,n)=>{const r=span/n,p=Math.pow(10,Math.floor(Math.log10(r))),f=r/p;return (f<1.5?1:f<3?2:f<7?5:10)*p;};
-  let g="";const ys=nice(ymax-ymin,5);
-  for(let v=Math.ceil(ymin/ys)*ys;v<=ymax;v+=ys){g+=`<line x1="${m.l}" x2="${W-m.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" stroke-width="1"/><text x="${m.l-6}" y="${Y(v)+3.5}" text-anchor="end">${Math.abs(v)>=1000?(v/1000).toFixed(1)+"k":v.toFixed(0)}</text>`;}
-  const xsN=nice(hi-lo,Math.max(3,Math.floor(W/110)));
-  for(let v=Math.ceil(lo/xsN)*xsN;v<=hi;v+=xsN){g+=`<text x="${X(v)}" y="${H-8}" text-anchor="middle">${v>=1000?(v/1000)+"k":v}</text>`;}
-  const be=A.be.filter(x=>x>lo&&x<hi).map(x=>`<circle cx="${X(x)}" cy="${y0}" r="4" fill="var(--panel)" stroke="var(--ink)" stroke-width="1.5"/>`).join("");
-  svg.innerHTML=`<defs><clipPath id="cpu"><rect x="0" y="0" width="${W}" height="${y0}"/></clipPath><clipPath id="cpd"><rect x="0" y="${y0}" width="${W}" height="${H}"/></clipPath></defs>
-   ${g}<path d="${area}" fill="var(--gain-soft)" clip-path="url(#cpu)"/><path d="${area}" fill="var(--loss-soft)" clip-path="url(#cpd)"/>
-   <line x1="${m.l}" x2="${W-m.r}" y1="${y0}" y2="${y0}" stroke="var(--muted)" stroke-width="1"/>
-   <line x1="${X(sp)}" x2="${X(sp)}" y1="${m.t}" y2="${H-m.b}" stroke="var(--accent)" stroke-width="1" stroke-dasharray="2 3"/>
-   <text x="${X(sp)+4}" y="${m.t+10}" style="fill:var(--accent)">index</text>
-   <path class="pro-only" d="${line(t)}" fill="none" stroke="var(--amber)" stroke-width="1.6" stroke-dasharray="5 4"/>
-   <path d="${line(e)}" fill="none" stroke="var(--ink)" stroke-width="2"/>${be}
-   <line id="cross" x1="0" x2="0" y1="${m.t}" y2="${H-m.b}" stroke="var(--muted)" stroke-width="1" visibility="hidden"/>`;
-  chartCache={W,lo,hi,m,tday,T:A.T};
-}
-function chartHover(ev){
-  if(!chartCache||!S.legs.length)return;const svg=$("chart"),r=svg.getBoundingClientRect(),c=chartCache;
-  const pt=ev.touches?ev.touches[0]:ev,fx=(pt.clientX-r.left)/r.width*c.W;
-  if(fx<c.m.l||fx>c.W-c.m.r){hideTip();return;}
-  const x=c.lo+(fx-c.m.l)/(c.W-c.m.l-c.m.r)*(c.hi-c.lo);
-  const e=pnl(S.legs,x,c.T,0,legEntry),t=pnl(S.legs,x,c.tday,0,legEntry);
-  const cr=$("cross");cr.setAttribute("x1",fx);cr.setAttribute("x2",fx);cr.setAttribute("visibility","visible");
-  const tip=$("tip");tip.hidden=false;tip.style.left=(pt.clientX-r.left)+"px";tip.style.top=(pt.clientY-r.top)+"px";
-  tip.innerHTML=`${S.u} $${px(S.u,x)}<br>Expiry ${sgn(e,2)}`+(S.mode==="pro"?`<br>Day ${Math.round(c.tday)} ${sgn(t,2)}`:"");
-}
-function hideTip(){$("tip").hidden=true;const cr=$("cross");if(cr)cr.setAttribute("visibility","hidden");}
-
-/* ---------- ticket ---------- */
-// Orders that put this share of demo cash at risk, or have no loss limit, need a second click.
-const BIG_SHARE=0.25;
-function legsSig(){return JSON.stringify(S.legs.map(l=>[l.type,l.K,l.e,l.side,l.qty]));}
-function baseQty(){return S.legs.length?S.legs[0].qty:0;}
-// Size is the first leg's quantity; other legs keep their ratio to it (a 1:1 spread stays 1:1).
-function setSize(v){
-  const u=S.u,b=baseQty();if(!b||!isFinite(v)||v<=0)return;
-  v=Math.max(U[u].minQ,+v.toFixed(U[u].qdp));const k=v/b;
-  for(const l of S.legs)l.qty=+Math.max(U[l.u].minQ,l.qty*k).toFixed(U[l.u].qdp);
-  S.legs[0].qty=v;renderLegs();renderAll();
-}
-function maxSize(A){const b=baseQty(),m=U[S.u].minQ;if(!b||!(A.req>0))return null;return Math.max(0,Math.floor(b*S.cash/A.req/m+1e-9)*m);}
-function renderSize(A){
-  const box=$("sizebox");box.hidden=!S.legs.length;if(!S.legs.length)return;
-  const inp=$("tqty"),u=S.u,dp=U[u].qdp;
-  if(document.activeElement!==inp)inp.value=baseQty().toFixed(dp);
-  inp.step=U[u].minQ;inp.min=U[u].minQ;inp.setAttribute("aria-describedby","sizehint");
-  $("tunit").textContent=u;
-  const mx=maxSize(A),share=A.req/Math.max(S.cash,1e-9);
-  $("sizehint").innerHTML=(S.legs.length>1?`<span>All ${S.legs.length} legs scale together.</span>`:"")+
-    (mx!=null&&mx>=U[u].minQ?`<span>Most your cash allows: <button class="link" data-sz="max">${mx.toFixed(dp)} ${u}</button></span>`:"")+
-    (isFinite(share)?`<span class="${share>=BIG_SHARE?"note":""}">${Math.round(share*100)}% of your cash at risk</span>`:"");
-}
-function renderRisk(A){
-  const box=$("risk"),btn=$("submit"),lg=S.legs;btn.classList.remove("warnbtn");
-  const canTrade=lg.length&&btn.textContent==="Place demo order"&&!btn.disabled;
-  if(!canTrade){box.hidden=true;return;}
-  const share=A.req/Math.max(S.cash,1e-9),unlimited=!isFinite(A.mn),mx=maxSize(A);
-  if(A.req>S.cash){
-    box.className="risk stop";box.hidden=false;btn.disabled=true;
-    box.innerHTML=`<b>Not enough demo cash</b><span>This order needs ${usd(A.req,2)}; you have ${usd(S.cash,2)}.${mx>=U[S.u].minQ?` Lower the size to ${mx.toFixed(U[S.u].qdp)} ${S.u} or less.`:" Pick a smaller strategy."}</span>`;return;
+/* ---------- data ---------- */
+let D=null;
+async function load(){
+  for(const url of ["/api/chain","snapshot.json"]){
+    try{const r=await fetch(url,{cache:"no-store"});if(!r.ok)continue;const j=await r.json();if(j&&j.BTC&&j.BTC.exps.length)return{d:j,live:url!=="snapshot.json"};}catch(e){}
   }
-  if(!(share>=BIG_SHARE||unlimited)){box.hidden=true;return;}
-  box.className="risk";box.hidden=false;
-  box.innerHTML=`<b>${unlimited?"Loss is not limited":"Large order"}</b><span>${unlimited?
-    `If ${S.u} moves sharply against you, you can lose more than the ${usd(A.req,0)} set aside for this order.`:
-    `This order puts ${usd(A.req,2)} at risk, ${Math.round(share*100)}% of your demo cash.`} Check the size before you confirm.</span>`;
-  if(S.bigOk===legsSig()){btn.textContent=`Confirm order · ${usd(A.req,0)} at risk`;btn.classList.add("warnbtn");}
-  else btn.textContent="Review large order";
+  return null;
 }
-function renderTicket(A){
-  const lg=S.legs;renderSize(A);
-  if(!lg.length){$("ticket").innerHTML=`<div class="empty">No legs in the order.</div>`;renderAccess();$("submit").disabled=true;$("risk").hidden=true;return;}
-  const net=A.net,total=net+A.fe;
-  $("ticket").innerHTML=[
-    ["Strategy",S.preset===null?"Custom":PRESETS[S.preset][0]],
-    ["Legs",lg.length],
-    [net>=0?"Premium paid":"Premium received",usd(Math.abs(net),2)],
-    ["Fees (est.)",usd(A.fe,2)],
-    ["Required capital",usd(A.req,2)],
-    ["Cash after order",usd(S.cash-total,2)]
-  ].map((r,i)=>`<div class="row${i===4?" total":""}"><span>${r[0]}</span><b>${r[1]}</b></div>`).join("");
-  renderAccess();renderRisk(A);
+// row: [K, cBid,cAsk,cMark,cIV,cOI, pBid,pAsk,pMark,pIV,pOI]
+const row=(e,K)=>e.s.find(r=>r[0]===K);
+function pickExp(coin,days){const ex=D[coin].exps;let best=ex[0];for(const e of ex)if(Math.abs((e.t-Date.now())/DAY-days)<Math.abs((best.t-Date.now())/DAY-days))best=e;return best;}
+function strikeAbove(e,x,steps){const ks=e.s.map(r=>r[0]);let i=ks.findIndex(K=>K>=x);if(i<0)i=ks.length-1;return ks[Math.min(ks.length-1,i+(steps||0))];}
+function atm(e){return e.s.reduce((a,r)=>Math.abs(r[0]-e.F)<Math.abs(a[0]-e.F)?r:a)[0];}
+
+function fill(live){
+  const b=D.BTC,e=D.ETH;
+  $("livePx").textContent=`BTC $${k(b.index)}`;$("livePill").classList.toggle("on",live);
+  if(!live)$("livePill").title="Saved Deribit snapshot";
+  $("stBtc").textContent="$"+k(b.index);$("stEth").textContent="$"+k(e.index);
+  const n=["BTC","ETH"].reduce((a,c)=>a+D[c].exps.reduce((s,x)=>s+x.s.length*2,0),0);
+  $("stCount").textContent=n.toLocaleString("en-US");
+  $("stTime").textContent=live?"refresh from Deribit · "+new Date(D.ts).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",timeZone:"Europe/Berlin"})+" CET":"saved Deribit snapshot";
+
+  // hero card: the first call above the forward, about three weeks out, at the smallest size
+  const x=pickExp("BTC",21),K=strikeAbove(x,x.F),r=row(x,K),ask=r[2]??r[3],cost=ask*0.01;
+  $("exName").textContent=`BTC ${k(K)} call`;$("exExp").textContent="expires "+day(x.t);
+  $("exCost").textContent=usd(cost,2);$("exAsk").textContent=usd(ask,0);$("exLoss").textContent=usd(cost,2);$("exBe").textContent="$"+k(K+ask);
+
+  // plain words: bull call spread at the same expiry
+  const K1=K,K2=strikeAbove(x,K1+1,1),r1=row(x,K1),r2=row(x,K2),q=0.05;
+  const debit=((r1[2]??r1[3])-(r2[1]??r2[3])),pay=debit*q,maxp=(K2-K1)*q-pay,be=K1+debit;
+  $("spExp").textContent=day(x.t);
+  $("spText").innerHTML=`<span class="lead">You make money if BTC is above <b>$${k(be)}</b> on ${day(x.t)}.</span>You pay <b>${usd(pay,2)}</b> today. The most you can lose is <b>${usd(pay,2)}</b>. The most you can make is <b>${usd(maxp,2)}</b>.`;
+  drawSpread(K1,K2,debit,x.F);
+
+  // start small: a further out-of-the-money call on the nearest weekly
+  const w=pickExp("BTC",8),Kw=strikeAbove(w,w.F*1.05),rw=row(w,Kw),aw=rw[2]??rw[3];
+  $("smName").textContent=`BTC ${k(Kw)} call`;$("smExp").textContent=day(w.t);
+  $("fromCost").textContent=usd(aw*0.01,2);
+  sizeLoop(aw);
+
+  // pro: at-the-money straddle scenario grid
+  const s=pickExp("BTC",21),Ka=atm(s),ra=row(s,Ka),T=Math.max((s.t-Date.now())/DAY,0.5)/365,ivc=ra[4]/100,ivp=ra[9]/100;
+  const entry=(ra[2]??ra[3])+(ra[7]??ra[8]),Q=0.05;
+  $("scExp").textContent=`${k(Ka)} · ${day(s.t)}`;
+  const val=(m,dv)=>Q*(bs(s.F*(1+m),Ka,T,ivc+dv,true).p+bs(s.F*(1+m),Ka,T,ivp+dv,false).p-entry);
+  const moves=[-0.15,-0.05,0,0.05,0.15],vs=[-0.1,0,0.1];
+  $("scGrid").innerHTML=`<thead><tr><th>BTC move</th>${vs.map(v=>`<th>IV ${v>0?"+":""}${v*100} pts</th>`).join("")}</tr></thead><tbody>`+
+    moves.map(m=>`<tr><td class="l">${m>0?"+":""}${m*100}%</td>${vs.map(v=>{const x=val(m,v);return `<td style="color:${x>=0?"var(--gain)":"var(--loss)"}">${sgn(x,0)}</td>`;}).join("")}</tr>`).join("")+"</tbody>";
+  const gc=bs(s.F,Ka,T,ivc,true),gp=bs(s.F,Ka,T,ivp,false);
+  $("scGreeks").innerHTML=[["Delta",((gc.d+gp.d)*Q).toFixed(3)+" BTC"],["Gamma",((gc.g+gp.g)*Q).toExponential(1)],["Theta / day",sgn((gc.th+gp.th)*Q,2)],["Vega / pt",sgn((gc.ve+gp.ve)*Q,2)]]
+    .map(([a,b])=>`<div>${a}<b>${b}</b></div>`).join("");
+
+  linesData();
 }
-async function submit(){
-  const A=analyze(S.legs,legEntry),msg=$("msg"),rec=currentRecord();
-  if(!S.legs.length||ACC.busy)return;
-  if(!rec||rec.expired){openAssess();return;}
-  const lv=userLevel(),need=reqLevel(S.legs);
-  if(lv===0){openAssess("result");return;}
-  if(need>lv)return;
-  if(A.req>S.cash){msg.className="msg err";msg.textContent=`Not enough demo cash. This order needs ${usd(A.req,2)}; you have ${usd(S.cash,2)}. Reduce the size or pick a defined-risk strategy.`;return;}
-  // Large or unlimited-loss orders: first click shows the risk, second click places.
-  if((A.req/Math.max(S.cash,1e-9)>=BIG_SHARE||!isFinite(A.mn))&&S.bigOk!==legsSig()){S.bigOk=legsSig();renderAll();$("submit").focus();return;}
-  S.bigOk=null;
-  const name=S.preset===null?"Custom":PRESETS[S.preset][0];
-  const legs=S.legs.map(l=>({id:l.id,u:l.u,type:l.type,K:l.K,e:l.e,t:l.t,side:l.side,qty:l.qty,entry:+legEntry(l).toFixed(4)}));
-  if(ACC.user){
-    // The server re-checks level, fee bounds and cash, then books the order against the assessment.
-    const r=await serverCall("place_order",{p_name:name,p_underlying:S.u,p_legs:legs,p_fee:+A.fe.toFixed(2),p_required:+A.req.toFixed(2)});
-    if(!r)return;
-    await loadServerState();  // cash, positions and the order count come back from the server, rounded as booked
-  }else{
-    S.positions.unshift({id:S.nid++,name,legs,fee:A.fe,u:S.u});
-    // Record every order placed under this assessment, and whether it followed a warning.
-    rec.orders=rec.orders||[];rec.orders.push({at:Date.now(),strategy:name,level:need,afterWarning:!!rec.warnedAck});saveAS();
-  }
-  if(!ACC.user)S.cash-=A.net+A.fe;
-  msg.className="msg ok";msg.textContent=`Filled: ${legs.length} leg${legs.length>1?"s":""}, ${A.net>=0?"paid":"received"} ${usd(Math.abs(A.net),2)}.`+(ACC.user?" Saved to your account.":"");
-  renderAll();
+function drawSpread(K1,K2,debit,F){
+  const svg=$("spChart"),W=320,H=120,lo=K1*0.9,hi=K2*1.1,pay=x=>Math.max(0,x-K1)-Math.max(0,x-K2)-debit;
+  const ymin=-debit*1.25,ymax=(K2-K1-debit)*1.25,X=x=>(x-lo)/(hi-lo)*W,Y=y=>H-12-(y-ymin)/(ymax-ymin)*(H-24);
+  const pts=[lo,K1,K2,hi].map(x=>`${X(x).toFixed(1)},${Y(pay(x)).toFixed(1)}`).join(" ");
+  svg.innerHTML=`<defs><clipPath id="up"><rect x="0" y="0" width="${W}" height="${Y(0)}"/></clipPath><clipPath id="dn"><rect x="0" y="${Y(0)}" width="${W}" height="${H}"/></clipPath></defs>
+    <polygon points="${X(lo)},${Y(0)} ${pts} ${X(hi)},${Y(0)}" fill="rgba(56,211,159,.18)" clip-path="url(#up)"/>
+    <polygon points="${X(lo)},${Y(0)} ${pts} ${X(hi)},${Y(0)}" fill="rgba(255,112,112,.16)" clip-path="url(#dn)"/>
+    <line x1="0" x2="${W}" y1="${Y(0)}" y2="${Y(0)}" stroke="#2a3650"/>
+    <line x1="${X(F)}" x2="${X(F)}" y1="4" y2="${H-4}" stroke="#8a9bff" stroke-dasharray="2 3"/>
+    <polyline points="${pts}" fill="none" stroke="#e6ebf4" stroke-width="2"/>
+    <text x="${X(K1)-4}" y="${H-2}" text-anchor="end">buy ${k(K1)}</text><text x="${X(K2)+4}" y="${H-2}">sell ${k(K2)}</text>`;
+}
+let sizeTimer=null;
+function sizeLoop(ask){
+  const steps=[0.01,0.02,0.03,0.05,0.03,0.02];let i=0;
+  const show=()=>{const q=steps[i%steps.length];$("smQty").textContent=q.toFixed(2);$("smCost").textContent=usd(ask*q,2);i++;};
+  show();clearInterval(sizeTimer);if(!reduce)sizeTimer=setInterval(show,1600);
 }
 
-/* ---------- accounts (Supabase): sign-in by emailed link; server is the record when signed in ---------- */
-const ACC={sb:null,user:null,ready:false,busy:false};
-const SB_JS="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js";
-const SERVER_ERRORS={
-  level_required:"Your options level does not allow this strategy.",
-  insufficient_cash:"Not enough demo cash for this order.",
-  assessment_required:"Take the knowledge check first.",
-  attempt_limit:"You have used all 3 attempts in the last 24 hours. Try again later.",
-  warning_not_open:"This warning was already answered. Reload the page to see the latest state.",
-  position_not_open:"This position is already closed. Reload the page to see the latest state.",
-  not_signed_in:"Your session ended. Sign in again to continue.",
-  invalid_legs:"One of the options in this order has expired or is not valid. Refresh the strategy and try again.",
-  invalid_fraction:"That part of the position is below the minimum size. Close the whole position instead."
-};
-function serverMessage(err){const m=String(err&&err.message||"");for(const k in SERVER_ERRORS)if(m.includes(k))return SERVER_ERRORS[k];
-  return "The server did not accept this. Check your connection and try again.";}
-async function serverCall(fn,args){
-  ACC.busy=true;$("submit").disabled=true;
-  try{const {data,error}=await ACC.sb.rpc(fn,args);
-    if(error){const msg=$("msg");msg.className="msg err";msg.textContent=serverMessage(error);return null;}
-    return data;}
-  catch(e){const msg=$("msg");msg.className="msg err";msg.textContent="Could not reach the server. Check your connection and try again.";return null;}
-  finally{ACC.busy=false;renderTicket(analyze(S.legs,legEntry));}
+/* ---------- hero: strike lines ----------
+   One curve per strike: the value of a call at that strike across a range of BTC prices, priced with
+   its live implied volatility. Time runs from today to expiry and back, so the smooth curves melt into
+   the familiar hockey-stick payoffs and back. The dashed line is the live index. */
+const cv=$("lines"),ctx=cv.getContext("2d");
+let W=0,H=0,LD=null,raf=0,visible=true,t0=performance.now();
+function resize(){const r=cv.getBoundingClientRect(),dpr=Math.min(2,devicePixelRatio||1);W=r.width;H=r.height;cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);draw();}
+function linesData(){
+  const e=D?pickExp("BTC",35):null;
+  if(e)LD={F:e.F,idx:D.BTC.index,T:Math.max((e.t-Date.now())/DAY,3)/365,ks:e.s.map(r=>({K:r[0],iv:r[4]/100}))};
+  draw();
 }
-function loadScript(src){return new Promise((ok,no)=>{const s=document.createElement("script");s.src=src;s.onload=ok;s.onerror=no;document.head.appendChild(s);});}
-function fromServer(a,orderCount){return{id:a.id,version:a.version,at:Date.parse(a.created_at),expires:Date.parse(a.expires_at),experience:a.experience,
-  answers:a.answers,score:a.score,level:Number(a.level),warnedAck:a.warned_ack_at?Date.parse(a.warned_ack_at):null,orderCount:orderCount||0,server:true};}
-async function initAccounts(){
-  let cfg=null;
-  try{const r=await fetch("api/config",{cache:"no-store"});if(r.ok)cfg=await r.json();}catch(e){}
-  if(!cfg||!cfg.url||!cfg.anonKey)return;          // not configured (or the artifact preview): stay in guest mode
-  try{await loadScript(SB_JS);}catch(e){return;}
-  ACC.sb=window.supabase.createClient(cfg.url,cfg.anonKey,{auth:{persistSession:true,detectSessionInUrl:true,flowType:"implicit"}});
-  const {data}=await ACC.sb.auth.getSession();
-  ACC.user=data&&data.session?data.session.user:null;ACC.ready=true;
-  ACC.sb.auth.onAuthStateChange((ev,session)=>{
-    const id=session&&session.user?session.user.id:null;
-    if(ev==="SIGNED_OUT"){location.reload();return;}  // back to this browser's guest data
-    if(id&&id!==(ACC.user&&ACC.user.id)){ACC.user=session.user;closeSignin();loadServerState();}
-  });
-  renderAuth();
-  if(ACC.user)await loadServerState();
+function fallback(){const F=78000,ks=[];for(let i=-10;i<=10;i++)ks.push({K:F+i*2000,iv:0.38+Math.abs(i)*0.004});return{F,idx:F,T:30/365,ks};}
+function draw(now){
+  if(!W)return;const d=LD||fallback();
+  const ph=reduce?0.5:(0.5-0.5*Math.cos(((now||t0)-t0)/1000*(2*Math.PI/14)));  // 0 = today, 1 = at expiry
+  const tau=d.T*(1-ph)+1e-6;
+  ctx.clearRect(0,0,W,H);
+  const lo=d.F*0.8,hi=d.F*1.24,x0=W*0.18,x1=W*1.02,yb=H*0.86,yt=H*0.08;
+  const minK=Math.min(...d.ks.map(s=>s.K)),X=s=>x0+(s-lo)/(hi-lo)*(x1-x0),vmax=Math.max(1,hi-minK)*1.04,Y=v=>yb-v/vmax*(yb-yt);
+  // baseline + strike ticks
+  ctx.strokeStyle="rgba(130,144,168,.25)";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x0,yb);ctx.lineTo(x1,yb);ctx.stroke();
+  const atmK=d.ks.reduce((a,b)=>Math.abs(b.K-d.F)<Math.abs(a.K-d.F)?b:a).K;
+  for(const s of d.ks){
+    const near=Math.max(0,1-Math.abs(s.K-d.F)/(d.F*0.25)),isAtm=s.K===atmK;
+    ctx.beginPath();
+    for(let i=0;i<=90;i++){const S=lo+(hi-lo)*i/90,v=bs(S,s.K,tau,s.iv,true).p,x=X(S),y=Y(v);i?ctx.lineTo(x,y):ctx.moveTo(x,y);}
+    ctx.strokeStyle=isAtm?"rgba(184,194,255,.95)":`rgba(138,155,255,${0.12+near*0.38})`;ctx.lineWidth=isAtm?2.2:1.1;ctx.stroke();
+    ctx.fillStyle="rgba(130,144,168,.45)";ctx.fillRect(X(s.K)-.5,yb+4,1,isAtm?8:4);
+  }
+  // live index
+  const xi=X(d.idx);ctx.setLineDash([3,4]);ctx.strokeStyle="rgba(56,211,159,.75)";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(xi,yt-10);ctx.lineTo(xi,yb);ctx.stroke();ctx.setLineDash([]);
+  ctx.font="500 11px 'Azeret Mono', monospace";ctx.fillStyle="rgba(56,211,159,.95)";ctx.fillText(`BTC ${k(d.idx)}`,xi+8,yt);
+  ctx.fillStyle="rgba(130,144,168,.85)";ctx.fillText(ph>0.97?"at expiry":`${Math.max(0,Math.round(tau*365))} days to expiry`,xi+8,yt+16);
 }
-async function loadServerState(){
-  renderAuth();
-  const {data,error}=await ACC.sb.rpc("my_state");
-  if(error){$("notice").textContent="Signed in, but your saved data did not load. Reload the page to try again.";return;}
-  S.cash=Number(data.cash);
-  S.positions=(data.positions||[]).map(p=>({id:p.id,name:p.name,legs:p.legs,fee:Number(p.fee),u:p.underlying}));
-  AS.tries=(data.tries24h||[]).map(Number);
-  AS.record=data.assessment?fromServer(data.assessment,data.orders):null;
-  renderAll();
-}
-function renderAuth(){
-  const el=$("auth");if(!ACC.ready){el.innerHTML="";return;}
-  el.innerHTML=ACC.user?`<span class="who" title="${esc(ACC.user.email||"")}">${esc(ACC.user.email||"Signed in")}</span><button class="link" data-auth="out">Sign out</button>`
-    :`<button class="btn2 sm" data-auth="in">Sign in</button>`;
-}
-function openSignin(){
-  const d=$("signin");$("siErr").textContent="";$("siField").hidden=false;$("siSend").hidden=false;$("siSend").disabled=false;
-  $("siText").textContent="We email you a sign-in link, so there is no password to remember. Your knowledge check, demo balance and positions are saved to your account.";
-  $("siEmail").removeAttribute("aria-invalid");$("siClose").textContent="Cancel";
-  if(!d.open){try{d.showModal();}catch(e){d.setAttribute("open","");}}$("siEmail").focus();
-}
-function closeSignin(){const d=$("signin");if(d.open)d.close();}
-async function sendLink(e){
-  e.preventDefault();
-  const inp=$("siEmail"),email=inp.value.trim(),err=$("siErr");
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){inp.setAttribute("aria-invalid","true");err.textContent="Enter your full email address, like name@example.com.";inp.focus();return;}
-  inp.removeAttribute("aria-invalid");$("siSend").disabled=true;err.textContent="";
-  const {error}=await ACC.sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
-  $("siSend").disabled=false;
-  if(error){err.textContent=/rate|security purposes|seconds/i.test(error.message)?"Too many sign-in emails were sent. Wait a minute and try again.":"The link could not be sent. Check the address and try again.";return;}
-  $("siTitle").textContent="Check your inbox";
-  $("siText").textContent=`We sent a sign-in link to ${email}. Open it on this device to finish signing in. You can close this window.`;
-  $("siField").hidden=true;$("siSend").hidden=true;$("siClose").textContent="Close";$("siTitle").focus();
-}
-async function resetAccount(){
-  const r=await serverCall("reset_account",{});if(!r)return;
-  $("msg").textContent="";await loadServerState();
-}
+function loop(now){draw(now);if(visible&&!reduce)raf=requestAnimationFrame(loop);}
+new IntersectionObserver(([e])=>{visible=e.isIntersecting;cancelAnimationFrame(raf);if(visible&&!reduce)raf=requestAnimationFrame(loop);}).observe(cv);
+addEventListener("resize",resize);resize();
 
-/* ---------- appropriateness check (MiFID II Art. 25(3), ESMA35-43-2938) ----------
-   Levels: 1 buy options (loss limited to premium) · 2 covered spreads (sold legs covered by bought legs)
-   · 3 uncovered selling. ESMA: no self-assessment, offer "I don't know", limit retries, clients may
-   proceed after a clear warning, keep records. Demo keeps the record in this browser only. */
-const AS_KEY="strikeline.appropriateness.v1",AS_VERSION="2026-11",MAX_TRIES=3,VALID_MS=365*DAY;
-const LEVELS=["Not assessed","Buy options","Spreads","Uncovered selling"];
-const LEVEL_DESC=["",
-  "Buy calls and puts, straddles and strangles. The most you can lose is the premium you pay.",
-  "Also spreads and iron condors. You sell options, but each one is covered by an option you buy, so the maximum loss is known before you trade.",
-  "Also sell options without cover. Losses can be far larger than the premium you receive and have no fixed limit."];
-const EXP=[
-  {id:"e1",text:"How many times have you traded options or futures (incl. perpetuals) in the past 3 years?",opts:[["0","Never"],["1-9","1 to 9 times"],["10-49","10 to 49 times"],["50+","50 times or more"]]},
-  {id:"e2",text:"How long have you been investing or trading?",opts:[["<1","Less than a year"],["1-3","1 to 3 years"],["3+","More than 3 years"]]},
-  {id:"e3",text:"Which of these have you traded yourself?",hint:"Select all that apply.",multi:true,opts:[["stocks","Stocks or ETFs"],["crypto","Crypto (spot)"],["fx","Currencies (FX)"],["options","Options"],["futures","Futures or perpetuals"],["cfd","CFDs"],["none","None of these"]]},
-  {id:"e4",text:"What is the typical size of a single trade for you?",opts:[["<500","Under €500"],["500-5k","€500 to €5,000"],["5k+","Over €5,000"]]},
-  {id:"e5",text:"Does your education or work relate to finance?",opts:[["no","No"],["study","I study or studied finance, economics or maths"],["work","I work or worked in finance"]]}
-];
-const QS=[
-  {id:"q1",sec:"core",text:"You buy a BTC call with a $80,000 strike for a $1,500 premium. At expiry BTC trades at $76,000. What is the result?",
-   opts:[["a","The option expires worthless and you lose the $1,500 premium"],["b","You must buy BTC at $80,000"],["c","You lose $4,000 plus the premium"],["d","You get the premium back because the option was not used"]],right:"a",
-   why:"A call gives you the right, not the obligation, to buy at the strike. Below the strike it is worth nothing at expiry, so the buyer loses the premium and nothing more."},
-  {id:"q2",sec:"core",text:"What is the most you can lose when you buy a put option?",
-   opts:[["a","The premium you paid"],["b","The strike price"],["c","There is no limit"],["d","Twice the premium"]],right:"a",
-   why:"Buying an option never costs more than the premium. The seller carries the larger risk."},
-  {id:"q3",sec:"core",text:"BTC's price and volatility stay exactly the same for two weeks. What usually happens to the value of an option you bought?",
-   opts:[["a","It falls, because less time is left until expiry"],["b","It stays the same"],["c","It rises, because expiry is closer"],["d","It depends only on the strike"]],right:"a",
-   why:"Options lose value as time passes (time decay, or theta). If nothing else moves, a bought option is worth a little less each day."},
-  {id:"q4",sec:"core",text:"Implied volatility rises sharply while BTC's price does not change. What usually happens to option prices?",
-   opts:[["a","Both calls and puts become more expensive"],["b","Calls rise and puts fall"],["c","Both become cheaper"],["d","Nothing, only the BTC price matters"]],right:"a",
-   why:"Higher expected volatility makes large moves more likely in both directions, so calls and puts both gain value (vega)."},
-  {id:"q5",sec:"spread",text:"You buy the $78,000 call and sell the $82,000 call on 1 BTC, paying $1,200 in total. What is your maximum profit at expiry?",
-   opts:[["a","$2,800: the $4,000 between the strikes minus the $1,200 you paid"],["b","Unlimited"],["c","$4,000"],["d","$1,200"]],right:"a",
-   why:"Above $82,000 the sold call offsets further gains, so the spread is worth at most the $4,000 between the strikes. Minus the $1,200 cost, that leaves $2,800."},
-  {id:"q6",sec:"short",text:"You sell a BTC call without owning BTC or holding a higher-strike call. What is your maximum possible loss?",
-   opts:[["a","Unlimited; it can be many times the premium you received"],["b","The premium you received"],["c","The strike price"],["d","Zero, because you received money"]],right:"a",
-   why:"If BTC keeps rising, an uncovered short call keeps losing. There is no upper limit to the price, so there is no limit to the loss."},
-  {id:"q7",sec:"short",text:"You sold an option and the market moves sharply against you. What can happen to your account?",
-   opts:[["a","You may have to add funds, or the position can be closed at a loss"],["b","Nothing happens until expiry"],["c","The exchange covers the loss"],["d","The trade is cancelled at no cost"]],right:"a",
-   why:"Sold options need margin. When losses grow, the broker asks for more funds (a margin call) or closes the position, often at the worst moment."}
-];
-const DK="dk";
-function loadAS(){try{const j=JSON.parse(localStorage.getItem(AS_KEY)||"null");if(j&&typeof j==="object")return j;}catch(e){}return{};}
-const AS=loadAS();AS.tries=Array.isArray(AS.tries)?AS.tries:[];
-function saveAS(){if(ACC.user)return;try{localStorage.setItem(AS_KEY,JSON.stringify(AS));}catch(e){}}  // signed in: the server keeps the record
-function recentTries(){const now=Date.now();return AS.tries.filter(t=>now-t<DAY);}
-function nextTryAt(){const r=recentTries();return r.length<MAX_TRIES?null:Math.min(...r)+DAY;}
-function currentRecord(){const r=AS.record;if(!r)return null;return Date.now()>r.expires?Object.assign(r,{expired:true}):r;}
-function userLevel(){const r=currentRecord();if(!r||r.expired)return 0;return r.level>0?r.level:(r.warnedAck?1:0);}
-function scoreAssessment(exp,ans){
-  const ok=id=>ans[id]===QS.find(q=>q.id===id).right;
-  const core=["q1","q2","q3","q4"].filter(ok).length,spread=ok("q5"),short=ok("q6")&&ok("q7");
-  const optExp=exp.e1==="10-49"||exp.e1==="50+"||(exp.e1==="1-9"&&exp.e5==="work");
-  let level=0;if(core>=3){level=1;if(spread){level=2;if(short&&optExp)level=3;}}
-  return{core,spread,short,optExp,level};
-}
-// A sold option is covered when bought options of the same type and at least the same expiry match its size.
-function reqLevel(legs){
-  if(!legs.length)return 0;
-  if(!legs.some(l=>l.side<0))return 1;
-  for(const type of ["C","P"]){
-    const sold=legs.filter(l=>l.type===type&&l.side<0);
-    for(const s of sold){
-      const cover=legs.filter(l=>l.type===type&&l.side>0&&l.t>=s.t).reduce((a,l)=>a+l.qty,0);
-      const need=sold.filter(x=>x.t<=s.t).reduce((a,l)=>a+l.qty,0);
-      if(cover+1e-9<need)return 3;
-    }
-  }
-  return 2;
-}
-// Sold legs that are not (fully) covered, with how much cover is missing. Same rule as reqLevel.
-function uncoveredLegs(legs){
-  const out=[];
-  for(const type of ["C","P"]){
-    const sold=legs.filter(l=>l.type===type&&l.side<0);
-    for(const s of sold){
-      const cover=legs.filter(l=>l.type===type&&l.side>0&&l.t>=s.t).reduce((a,l)=>a+l.qty,0);
-      const need=sold.filter(x=>x.t<=s.t).reduce((a,l)=>a+l.qty,0);
-      if(cover+1e-9<need)out.push({leg:s,short:+Math.min(s.qty,need-cover).toFixed(4)});
-    }
-  }
-  return out;
-}
-// A further out-of-the-money strike on the same expiry to buy as protection.
-function protectStrike(l){
-  const e=expOf(l.u,l.e);if(!e)return null;const ks=e.s.map(r=>r[0]),i=ks.indexOf(l.K);if(i<0)return null;
-  const j=l.type==="C"?Math.min(ks.length-1,i+2):Math.max(0,i-2);return ks[j]!==l.K?ks[j]:null;
-}
-const legName=l=>`${l.side>0?"Buy":"Sell"} ${l.type==="C"?"call":"put"} ${kfmt(l.K)} (${fmtDate(l.t)})`;
-function fixBox(need,lv){
-  const retake=MAX_TRIES-recentTries().length>0?`<button data-act="retake">Retake the check</button>`:"";
-  if(lv<2){ // level 1: any sold option is above the level
-    return `<div class="fixbox"><b>Your level ${lv} allows buying options only</b>
-      <span>This order sells ${S.legs.filter(l=>l.side<0).length} option(s). Selling, even with protection, needs level 2.</span>
-      <div class="fixbtns"><button class="go" data-fix="dropsold">Remove the sold options</button><button data-fix="buyall">Buy every leg instead</button>${retake}</div></div>`;
-  }
-  const rows=uncoveredLegs(S.legs).map(({leg,short})=>{const k=protectStrike(leg);
-    return `<div class="fixrow"><span>${legName(leg)} has no protection</span><div class="fixbtns">
-      ${k?`<button class="go" data-fix="protect:${leg.id}:${k}:${short}">Add protection: buy ${leg.type==="C"?"call":"put"} ${kfmt(k)}</button>`:""}
-      <button data-fix="flip:${leg.id}">Buy it instead</button><button data-fix="drop:${leg.id}">Remove it</button></div></div>`;}).join("");
-  return `<div class="fixbox"><b>This order needs level ${need}. Your level is ${lv}.</b>
-    <span>At level 2 every option you sell must be covered by an option you buy: same type, same or later expiry, at least the same size. That makes the maximum loss known in advance.</span>${rows}
-    ${retake?`<div class="fixbtns">${retake}</div>`:""}</div>`;
-}
-function applyFix(code){
-  const [kind,id,k,q]=code.split(":"),leg=S.legs.find(l=>String(l.id)===id);
-  if(kind==="dropsold")S.legs=S.legs.filter(l=>l.side>0);
-  else if(kind==="buyall")S.legs.forEach(l=>l.side=1);
-  else if(kind==="flip"&&leg)leg.side=1;
-  else if(kind==="drop"&&leg)S.legs=S.legs.filter(l=>l!==leg);
-  else if(kind==="protect"&&leg)S.legs.push({id:S.nid++,u:leg.u,type:leg.type,K:+k,e:leg.e,t:leg.t,side:1,qty:+q});
-  S.preset=null;renderLegs();renderAll();
-  $("msg").className="msg ok";$("msg").textContent=reqLevel(S.legs)<=userLevel()?"Order updated. It now fits your level; check the ticket and place it.":"Order updated.";
-}
-function presetLevel(i){return reqLevel(PRESETS[i][1].map(([t,o,s])=>({type:t,side:s,qty:1,t:0})));}
-const fmtDay=t=>new Date(t).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric",timeZone:"Europe/Berlin"});
-const fmtTime=t=>new Date(t).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit",timeZone:"Europe/Berlin"});
-const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const optText=(list,id,key)=>{const q=list.find(x=>x.id===id);if(key===DK)return"I don't know";const o=q&&q.opts.find(x=>x[0]===key);return o?o[1]:"—";};
+/* ---------- nav ---------- */
+const nav=$("nav"),onScroll=()=>nav.classList.toggle("solid",scrollY>24);onScroll();addEventListener("scroll",onScroll,{passive:true});
 
-function renderAccess(){
-  const rec=currentRecord(),lv=userLevel(),need=reqLevel(S.legs),box=$("access"),btn=$("submit");
-  btn.textContent="Place demo order";btn.disabled=!S.legs.length;
-  if(!rec||rec.expired){
-    box.innerHTML=`<div class="box"><b>${rec?"Your knowledge check has expired":"Before your first options trade"}</b>
-      <span>${rec?"Checks are valid for 12 months. Update your answers to keep trading.":"EU rules (MiFID II) require us to check that options are appropriate for you. It takes about 2 minutes."}</span></div>`;
-    btn.textContent=rec?"Update the knowledge check":"Start the knowledge check";btn.disabled=false;return;
-  }
-  const tries=MAX_TRIES-recentTries().length,retake=tries>0?`<button class="link" data-act="retake">Retake the check</button>`:`<span class="sub">Next retake from ${fmtTime(nextTryAt())}</span>`;
-  const sc=rec.score,dl=[
-    ["Record ID",rec.id],["Taken",fmtTime(rec.at)],["Valid until",fmtDay(rec.expires)],["Questionnaire",rec.version],
-    ...EXP.map(e=>[e.text.replace(/\?$/,""),[].concat(rec.experience[e.id]||[]).map(k=>optText(EXP,e.id,k)).join(", ")]),
-    ["Knowledge",`${sc.core}/4 basics · spreads ${sc.spread?"correct":"not correct"} · selling ${sc.short?"correct":"not correct"}`],
-    ["Result",rec.level>0?`Appropriate up to level ${rec.level}`:"Not appropriate (warning shown)"],
-    ["Warning accepted",rec.warnedAck?fmtTime(rec.warnedAck):"—"],["Orders under this check",String(rec.orderCount??(rec.orders||[]).length)]
-  ];
-  const record=`<details class="rec"><summary>Assessment record</summary><dl>${dl.map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
-    <p class="fine">${rec.server?"Saved to your account. In the live product it is kept for at least 5 years.":
-      ACC.sb?"Saved in this browser only. Sign in to keep it on your account.":"In the live product this record is kept on our servers for at least 5 years. In this demo it stays in your browser."}</p></details>`;
-  if(lv===0){
-    box.innerHTML=`<div class="box bad"><b>Options may not be appropriate for you</b><span>Your knowledge check ended with a warning. Review it to decide how to continue.</span>
-      <div class="lvl"><button class="link" data-act="review">Review my result</button>${retake}</div></div>${record}`;
-    btn.textContent="Review my result";btn.disabled=false;return;
-  }
-  let line="";
-  if(S.legs.length&&need>lv){line=fixBox(need,lv);btn.disabled=true;}
-  box.innerHTML=`<div class="lvl"><span class="chip${rec.warnedAck?" warn":""}">Level ${lv} · ${LEVELS[lv]}</span>${retake}</div>
-    ${rec.warnedAck?`<span class="note">You chose to continue after an appropriateness warning. Selling options stays locked.</span>`:""}${line}${record}`;
-}
-
-/* dialog */
-let flow=null;
-function shuffled(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
-function openAssess(step){
-  const prev=AS.record&&!step?AS.record.experience:null;
-  // Pre-fill experience from the last check (ESMA allows this if the client can correct it); never pre-fill knowledge answers.
-  flow={step:step||"intro",exp:prev?JSON.parse(JSON.stringify(prev)):{},ans:{},order:Object.fromEntries(QS.map(q=>[q.id,shuffled(q.opts)])),err:""};
-  drawAssess();const d=$("assess");if(!d.open){try{d.showModal();}catch(e){d.setAttribute("open","");}}
-  focusTitle();
-}
-function closeAssess(){const d=$("assess");if(d.open)d.close();renderAll();}
-function focusTitle(){const h=$("asTitle");if(h)h.focus();$("asBody").scrollTop=0;}
-function radio(name,key,label,checked,multi,dk){return `<label class="opt${dk?" dk":""}"><input type="${multi?"checkbox":"radio"}" name="${name}" value="${key}" id="${name}-${String(key).replace(/[^a-z0-9]/gi,"_")}"${checked?" checked":""}><span>${esc(label)}</span></label>`;}
-function drawAssess(){
-  const B=$("asBody"),F=$("asFoot"),f=flow,tries=MAX_TRIES-recentTries().length;
-  const triesLine=tries>0?`${tries} of ${MAX_TRIES} attempts left in the next 24 hours`:`No attempts left. Next attempt from ${fmtTime(nextTryAt())}`;
-  if(f.step==="intro"){
-    B.innerHTML=`<h2 id="asTitle" tabindex="-1">Options knowledge check</h2>
-      <p>Options are complex products. Before your first trade, EU rules (MiFID II) require us to check that you have the knowledge and experience to understand the risks.</p>
-      <ul><li>5 questions about your trading experience</li><li>7 short questions on how options work. If you are not sure, choose "I don't know". A guess can unlock strategies you are not ready for.</li><li>About 2 minutes. You can take it up to ${MAX_TRIES} times in 24 hours.</li></ul>
-      <h3>What your result unlocks</h3>
-      <div class="levels">${[1,2,3].map(n=>`<div><span class="st">L${n}</span><b>${LEVELS[n]}</b><small>${LEVEL_DESC[n]}</small></div>`).join("")}</div>`;
-    F.innerHTML=`<span class="sub">${triesLine}</span><div class="btns"><button class="btn2" data-act="close">Not now</button>${tries>0?`<button class="primary" data-act="toExp">Start</button>`:""}</div>`;
-  }else if(f.step==="exp"){
-    B.innerHTML=`<span class="as-step">Step 1 of 2 · Your experience</span><h2 id="asTitle" tabindex="-1">Your trading experience</h2>
-      ${EXP.map(e=>`<fieldset id="fs-${e.id}"><legend>${esc(e.text)}${e.hint?`<small>${esc(e.hint)}</small>`:""}</legend>
-        ${e.opts.map(([k,l])=>radio(e.id,k,l,[].concat(f.exp[e.id]||[]).includes(k),e.multi)).join("")}</fieldset>`).join("")}
-      <p class="as-err" id="asErr" role="alert">${esc(f.err)}</p>`;
-    F.innerHTML=`<span class="sub">Answer all 5 questions</span><div class="btns"><button class="btn2" data-act="toIntro">Back</button><button class="primary" data-act="toQuiz">Continue</button></div>`;
-  }else if(f.step==="quiz"){
-    B.innerHTML=`<span class="as-step">Step 2 of 2 · How options work</span><h2 id="asTitle" tabindex="-1">7 questions on options</h2>
-      <p>Prices are examples. Choose "I don't know" rather than guessing.</p>
-      ${QS.map((q,i)=>`<fieldset id="fs-${q.id}"><legend><small>Question ${i+1} of ${QS.length}</small>${esc(q.text)}</legend>
-        ${f.order[q.id].map(([k,l])=>radio(q.id,k,l,f.ans[q.id]===k)).join("")}${radio(q.id,DK,"I don't know",f.ans[q.id]===DK,false,true)}</fieldset>`).join("")}
-      <p class="as-err" id="asErr" role="alert">${esc(f.err)}</p>`;
-    F.innerHTML=`<span class="sub">${triesLine}</span><div class="btns"><button class="btn2" data-act="toExp">Back</button><button class="primary" data-act="finish">See my result</button></div>`;
-  }else{
-    const rec=AS.record,sc=rec.score,lv=rec.level;
-    const wrong=QS.filter(q=>rec.answers[q.id]!==q.right);
-    const why=n=>n===1?"Answer at least 3 of questions 1 to 4 correctly.":n===2?"Answer question 5 on spreads correctly.":
-      `Answer questions 6 and 7 on selling options correctly${sc.optExp?"":", and have traded options or futures at least 10 times in the past 3 years (1 to 9 times if you work in finance)"}.`;
-    const levels=`<div class="levels">${[1,2,3].map(n=>{const on=n<=lv||(n===1&&rec.warnedAck);
-      return `<div class="${on?"on":"off"}"><span class="st">${on?"OPEN":"LOCKED"}</span><b>Level ${n} · ${LEVELS[n]}</b><small>${on?LEVEL_DESC[n]:why(n)}</small></div>`;}).join("")}</div>`;
-    const review=wrong.length?`<h3>Questions to review</h3><div class="review">${wrong.map(q=>`<div><b>${esc(q.text)}</b>
-      <small>Your answer: ${esc(optText(QS,q.id,rec.answers[q.id]))}</small><span>Correct: ${esc(optText(QS,q.id,q.right))}. ${esc(q.why)}</span></div>`).join("")}</div>`:`<p>You answered all 7 questions correctly.</p>`;
-    if(lv>0){
-      B.innerHTML=`<span class="as-step">Result</span><h2 id="asTitle" tabindex="-1">Your options level: ${lv} · ${LEVELS[lv]}</h2>
-        <p>You answered ${7-wrong.length} of 7 questions correctly.${lv<3?" You can retake the check to unlock more.":""}</p>${levels}${review}`;
-      F.innerHTML=`<span class="sub">${triesLine}</span><div class="btns"><button class="primary" data-act="close">Start trading</button></div>`;
-    }else{
-      B.innerHTML=`<span class="as-step">Result</span><h2 id="asTitle" tabindex="-1">Options may not be appropriate for you</h2>
-        <div class="warnbox" role="alert"><b>Warning: based on your answers, options are not appropriate for you.</b>
-        <span>You answered ${sc.core} of the 4 basic questions on how options work correctly. Options can lose their whole value within days, and their price depends on time and volatility as well as on the BTC or ETH price. Without this knowledge you may lose money in ways you do not expect.</span>
-        <span>You can still continue, but only with buying options, where the most you can lose is the premium you pay. Selling options stays locked.</span></div>
-        ${rec.warnedAck?`<p class="note">You accepted this warning on ${fmtTime(rec.warnedAck)}.</p>`:""}
-        <p class="as-err" id="asErr" role="alert">${esc(f.err)}</p>${review}`;
-      F.innerHTML=`<span class="sub">${triesLine}</span><div class="btns">${rec.warnedAck?`<button class="primary" data-act="close">Close</button>`:
-        `<button class="btn2" data-act="close">Not now</button><button class="btn2" data-act="accept">I understand the risk, let me buy options</button>`}</div>`;
-    }
-  }
-}
-function readStep(){
-  const B=$("asBody"),list=flow.step==="exp"?EXP:QS,miss=[];
-  for(const q of list){
-    const vals=[...B.querySelectorAll(`input[name="${q.id}"]:checked`)].map(i=>i.value);
-    if(q.multi){let v=vals;if(v.includes("none")&&v.length>1)v=v.filter(x=>x!=="none");flow.exp[q.id]=v;}
-    else if(vals[0]!==undefined){(flow.step==="exp"?flow.exp:flow.ans)[q.id]=vals[0];}
-    const fs=$("fs-"+q.id),has=vals.length>0;if(fs)fs.classList.toggle("missing",!has);if(!has)miss.push(q.id);
-  }
-  return miss;
-}
-async function assessAction(act){
-  const f=flow;
-  if(act==="close"){closeAssess();return;}
-  if(act==="toIntro"){readStep();f.err="";f.step="intro";}
-  else if(act==="toExp"){if(f.step==="quiz")readStep();if(f.step==="intro"&&nextTryAt())return;f.err="";f.step="exp";}
-  else if(act==="toQuiz"){const miss=readStep();if(miss.length){f.err=`Answer the ${miss.length===1?"highlighted question":miss.length+" highlighted questions"} to continue.`;$("asErr").textContent=f.err;$("fs-"+miss[0]).scrollIntoView({block:"center"});$("fs-"+miss[0]).querySelector("input").focus();return;}f.err="";f.step="quiz";}
-  else if(act==="finish"){
-    const miss=readStep();
-    if(miss.length){f.err=`Answer the ${miss.length===1?"highlighted question":miss.length+" highlighted questions"} to continue. "I don't know" is a valid answer.`;$("asErr").textContent=f.err;$("fs-"+miss[0]).scrollIntoView({block:"center"});$("fs-"+miss[0]).querySelector("input").focus();return;}
-    if(nextTryAt()){f.err="You have used all attempts for now.";$("asErr").textContent=f.err;return;}
-    if(ACC.user){
-      // Scored on the server with an answer key the browser never sees.
-      const btn=$("asFoot").querySelector('[data-act="finish"]');btn.disabled=true;btn.textContent="Checking…";
-      let res;try{res=await ACC.sb.rpc("submit_assessment",{p_version:AS_VERSION,p_experience:f.exp,p_answers:f.ans});}catch(e){res={error:{message:"network"}};}
-      if(res.error){btn.disabled=false;btn.textContent="See my result";f.err=serverMessage(res.error);$("asErr").textContent=f.err;return;}
-      AS.tries.push(Date.parse(res.data.created_at));AS.record=fromServer(res.data,0);
-    }else{
-      const now=Date.now(),sc=scoreAssessment(f.exp,f.ans);AS.tries.push(now);
-      AS.record={id:"SL-"+now.toString(36).toUpperCase()+"-"+Math.random().toString(36).slice(2,6).toUpperCase(),version:AS_VERSION,at:now,expires:now+VALID_MS,
-        experience:f.exp,answers:f.ans,score:{core:sc.core,spread:sc.spread,short:sc.short,optExp:sc.optExp},level:sc.level,warnedAck:null,orders:[]};
-      saveAS();
-    }
-    f.step="result";
-  }
-  else if(act==="accept"){
-    if(ACC.user){let res;try{res=await ACC.sb.rpc("accept_warning",{p_id:AS.record.id});}catch(e){res={error:{message:"network"}};}
-      if(res.error){f.err=serverMessage(res.error);drawAssess();return;}
-      AS.record=fromServer(res.data,AS.record.orderCount);}
-    else{AS.record.warnedAck=Date.now();saveAS();}
-  }
-  else if(act==="review"){openAssess("result");return;}
-  else if(act==="retake"){openAssess();return;}
-  drawAssess();focusTitle();
-}
-
-/* ---------- scenarios & positions ---------- */
-function renderScen(){
-  const lg=S.legs,u=S.u,sp=S.spot[u];
-  if(!lg.length){$("scen").innerHTML=`<tr><td class="lab" style="text-align:left">Add legs to run scenarios.</td></tr>`;return;}
-  const T=Math.min(S.tday,minDays(lg)),moves=[-30,-20,-10,-5,0,5,10,20,30],vs=[-10,0,10];
-  let mx=1;const grid=moves.map(mv=>vs.map(v=>{const val=pnl(lg,sp*(1+mv/100),T,v/100,legEntry);mx=Math.max(mx,Math.abs(val));return val;}));
-  let h=`<thead><tr><th style="text-align:left">${u} move</th><th>Price</th>${vs.map(v=>`<th>IV ${v>0?"+":""}${v} pts</th>`).join("")}</tr></thead><tbody>`;
-  moves.forEach((mv,i)=>{h+=`<tr><td class="lab" style="text-align:left">${mv>0?"+":""}${mv}%</td><td class="lab">${px(u,sp*(1+mv/100))}</td>`+
-    grid[i].map(val=>{const a=Math.min(1,Math.abs(val)/mx);const c=val>=0?"var(--gain)":"var(--loss)";
-      return `<td style="color:${c};background:color-mix(in srgb, ${val>=0?"var(--gain-soft)":"var(--loss-soft)"} ${Math.round(a*100)}%, transparent)">${sgn(val,0)}</td>`;}).join("")+`</tr>`;});
-  $("scen").innerHTML=h+"</tbody>";
-  $("scensub").textContent=T<0.5?"Valued today":`Valued in ${Math.round(T)} days`;
-}
-function renderPos(){
-  const tools=ACC.user?`<div class="pos-actions"><span class="saved">Saved to your account</span>${S.resetAsk?
-    `<span>Close all positions and reset cash to $10,000?</span><button class="ghost" data-reset="yes">Reset balance</button><button class="link" data-reset="no">Keep</button>`:
-    `<button class="link" data-reset="ask">Reset demo balance</button>`}</div>`:"";
-  if(!S.positions.length){$("pos").innerHTML=`<div class="empty">No open positions. Placed demo orders show up here with P&amp;L marked to Deribit mid prices.</div>`+tools;$("possub").textContent="";return;}
-  $("pos").innerHTML=tools+S.positions.map(p=>{
-    let val=0,cost=0;for(const l of p.legs){const q=legQuote(l);val+=l.side*l.qty*q.mid;cost+=l.side*l.qty*l.entry;}
-    const pl=val-cost-p.fee,d=Math.max(0,minDays(p.legs));
-    const open=String(S.adjust)===String(p.id);
-    const fr=closeFractions(p).map(f=>`<button class="ghost" data-closef="${p.id}:${f}">${f<1?`Close ${f*100}%`:"Close all"} · <b>${sgn(val*f,2)}</b></button>`).join("");
-    return `<div class="pcard"><div class="top2"><b>${p.name} · ${p.u}</b><span class="num ${pl>=0?"up":"down"}">${sgn(pl,2)}</span></div>
-      <small>${p.legs.map(l=>`${l.side>0?"Buy":"Sell"} ${l.qty} ${l.type} ${kfmt(l.K)} ${fmtDate(l.t)} @ ${px(l.u,l.entry)}`).join(" · ")}</small>
-      <div class="top2"><small>${d.toFixed(1)} days to first expiry · fees ${usd(p.fee,2)}</small>${open?"":`<button class="ghost" data-adj="${p.id}">Reduce or close</button>`}</div>
-      ${open?`<div class="adj"><span>At current mid prices:</span>${fr}<button class="link" data-adj="">Cancel</button></div>`:""}</div>`;}).join("");
-  $("possub").textContent=S.positions.length+" open";
-}
-// Partial closes are offered only when both the closed and the remaining part are at least the minimum size.
-function closeFractions(p){
-  const ok=f=>p.legs.every(l=>{const m=U[l.u].minQ;return +(l.qty*f).toFixed(4)>=m-1e-9&&+(l.qty*(1-f)).toFixed(4)>=m-1e-9;});
-  return [0.25,0.5].filter(ok).concat(1);
-}
-async function closePos(id,f=1){
-  const i=S.positions.findIndex(p=>String(p.id)===String(id));if(i<0||ACC.busy)return;const p=S.positions[i];
-  let val=0;for(const l of p.legs)val+=l.side*l.qty*legQuote(l).mid;
-  const part=+(val*f).toFixed(2);S.adjust=null;
-  if(ACC.user){
-    const r=f<1?await serverCall("reduce_position",{p_id:p.id,p_fraction:f,p_value:part}):await serverCall("close_position",{p_id:p.id,p_value:part});
-    if(r)await loadServerState();return;
-  }
-  if(f<1){for(const l of p.legs)l.qty=+(l.qty*(1-f)).toFixed(4);p.fee*=1-f;}
-  else{const j=S.positions.indexOf(p);if(j>=0)S.positions.splice(j,1);}
-  S.cash+=part;renderAll();
-}
-
-/* ---------- render all ---------- */
-function renderAll(){
-  $("app").classList.toggle("basic",S.mode==="basic");
-  const A=analyze(S.legs,legEntry);
-  const T=S.legs.length?A.T:0;const sl=$("tday");sl.max=Math.max(0,Math.floor(T));if(S.tday>T)S.tday=Math.floor(Math.max(0,T));sl.value=S.tday;
-  $("tdayv").textContent=S.tday===0?"Today":`+${S.tday} days`;$("t0l").textContent=S.tday;
-  $("expl").textContent=S.legs.length?fmtDate(Math.min(...S.legs.map(l=>l.t))):"—";
-  $("minq").textContent=U[S.u].minQ+" "+S.u;
-  renderHeader();renderExp();renderChain();renderPresets();updateLegPrices();
-  $("explain").innerHTML=explain(A);renderStats(A);renderChart(A);renderTicket(A);renderScen();renderPos();
-}
-
-/* ---------- events ---------- */
-function wire(){
-  $("useg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b||b.dataset.u===S.u)return;
-    S.u=b.dataset.u;setPressed($("useg"),"u",S.u);if(!expOf(S.u,S.exp))S.exp=D[S.u].exps[2].code;applyPreset(2);});
-  $("mseg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;S.mode=b.dataset.m;setPressed($("mseg"),"m",S.mode);renderAll();});
-  $("exps").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;S.exp=b.dataset.c;renderAll();});
-  $("chain").addEventListener("click",e=>{const b=e.target.closest("button[data-a]");if(!b)return;const[t,k,s]=b.dataset.a.split(",");const ex=expOf(S.u,S.exp);
-    S.legs.push({id:S.nid++,u:S.u,type:t,K:+k,e:ex.code,t:ex.t,side:+s,qty:U[S.u].defQ});S.preset=null;renderLegs();renderAll();});
-  $("presets").addEventListener("click",e=>{const b=e.target.closest("button");if(b)applyPreset(+b.dataset.p);});
-  $("legs").addEventListener("click",e=>{const f=e.target.closest("[data-flip]"),d=e.target.closest("[data-del]");
-    if(f){const l=S.legs.find(x=>x.id==f.dataset.flip);l.side*=-1;S.preset=null;renderLegs();renderAll();}
-    if(d){S.legs=S.legs.filter(x=>x.id!=d.dataset.del);S.preset=null;renderLegs();renderAll();}});
-  $("legs").addEventListener("input",e=>{const i=e.target.closest("[data-q]");if(!i)return;const l=S.legs.find(x=>x.id==i.dataset.q);
-    const v=parseFloat(i.value);if(isFinite(v)&&v>0){l.qty=+(Math.max(U[l.u].minQ,v)).toFixed(U[l.u].qdp);renderAll();}});
-  $("tday").addEventListener("input",e=>{S.tday=+e.target.value;renderAll();});
-  $("access").addEventListener("click",e=>{const f=e.target.closest("[data-fix]");if(f){applyFix(f.dataset.fix);return;}
-    const b=e.target.closest("[data-act]");if(b)assessAction(b.dataset.act);});
-  const dlg=$("assess");
-  dlg.addEventListener("click",e=>{const b=e.target.closest("button[data-act]");if(b)assessAction(b.dataset.act);});
-  dlg.addEventListener("change",e=>{const fs=e.target.closest("fieldset");if(fs)fs.classList.remove("missing");
-    if(e.target.name==="e3"){const boxes=[...fs.querySelectorAll("input")];  // "None of these" excludes the others
-      if(e.target.value==="none"&&e.target.checked)boxes.forEach(i=>{if(i.value!=="none")i.checked=false;});
-      else if(e.target.checked)boxes.forEach(i=>{if(i.value==="none")i.checked=false;});}});
-  dlg.addEventListener("close",()=>renderAll());
-  $("auth").addEventListener("click",async e=>{const b=e.target.closest("[data-auth]");if(!b||!ACC.sb)return;
-    if(b.dataset.auth==="in")openSignin();else{b.disabled=true;await ACC.sb.auth.signOut();location.reload();}});
-  $("siForm").addEventListener("submit",sendLink);
-  $("siClose").addEventListener("click",closeSignin);
-  $("pos").addEventListener("click",e=>{const b=e.target.closest("[data-reset]");if(!b)return;
-    if(b.dataset.reset==="ask")S.resetAsk=true;else if(b.dataset.reset==="no")S.resetAsk=false;else{S.resetAsk=false;resetAccount();return;}renderPos();});
-  $("submit").addEventListener("click",submit);
-  $("pos").addEventListener("click",e=>{
-    const a=e.target.closest("[data-adj]");if(a){S.adjust=a.dataset.adj||null;renderPos();return;}
-    const c=e.target.closest("[data-closef]");if(c){const [id,f]=c.dataset.closef.split(":");closePos(id,+f);}});
-  // Ticket size: steppers, typed value (applied on Enter/blur so typing "0.1" isn't cut short), and "most your cash allows".
-  $("sizebox").addEventListener("click",e=>{const b=e.target.closest("[data-sz]");if(!b)return;const m=U[S.u].minQ,cur=baseQty();
-    if(b.dataset.sz==="up")setSize(cur+m);else if(b.dataset.sz==="down")setSize(Math.max(m,cur-m));
-    else setSize(maxSize(analyze(S.legs,legEntry)));});
-  $("tqty").addEventListener("change",e=>{const v=parseFloat(e.target.value);if(isFinite(v)&&v>0)setSize(v);else e.target.value=baseQty();});
-  $("tqty").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();e.target.blur();}});
-  const svg=$("chart");svg.addEventListener("mousemove",chartHover);svg.addEventListener("touchmove",chartHover,{passive:true});svg.addEventListener("mouseleave",hideTip);svg.addEventListener("touchend",hideTip);
-  let rz;window.addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(renderAll,120);});
-}
-
-/* ---------- market data: live from /api/chain, bundled snapshot as fallback ---------- */
-const POLL_MS=15000;
-const clock=ts=>new Date(ts).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit",timeZone:"Europe/Berlin"});
-function setStatus(kind,text){const f=$("feed");f.dataset.state=kind;$("snap").textContent=text;}
-async function getJson(url){const r=await fetch(url,{cache:"no-store"});if(!r.ok)throw new Error(String(r.status));
-  const j=await r.json();if(!j||!j.BTC||!j.ETH||!j.BTC.exps.length)throw new Error("bad payload");return j;}
-function apply(data){
-  D=data;S.spot={BTC:D.BTC.index,ETH:D.ETH.index};
-  for(const u in S.spot)if(!S.open[u])S.open[u]=S.spot[u];
-  if(!expOf(S.u,S.exp))S.exp=D[S.u].exps[Math.min(3,D[S.u].exps.length-1)].code;
-}
-let live=false,fails=0;
-async function poll(){
-  if(document.hidden)return;
-  try{const d=await getJson("api/chain");fails=0;apply(d);setStatus("live","Live · Deribit · "+clock(d.ts));
-    const tipOpen=!$("tip").hidden;renderAll();if(tipOpen)hideTip();}
-  catch(e){fails++;setStatus("stale",fails>2?"Live data paused · retrying":"Reconnecting…");}
-}
-async function boot(){
-  let data=null;
-  try{data=await getJson("api/chain");live=true;}catch(e){}
-  if(!data){try{data=await getJson("snapshot.json");}catch(e){}}
-  if(!data){$("notice").textContent="Market data did not load. Check your connection and reload the page.";setStatus("stale","No data");return;}
-  apply(data);wire();applyPreset(2);
-  initAccounts();
-  if(live){
-    setStatus("live","Live · Deribit · "+clock(data.ts));
-    $("notice").textContent="Bids, asks, mark prices and implied volatilities are live from Deribit's public market data, refreshed every 15 seconds and shown in USD. No real orders are sent.";
-    setInterval(poll,POLL_MS);document.addEventListener("visibilitychange",()=>{if(!document.hidden)poll();});
-  }else{
-    const when=new Date(data.ts).toLocaleString("en-GB",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",timeZone:"Europe/Berlin"});
-    setStatus("snapshot","Deribit snapshot · "+when+" CET");
-    $("notice").textContent=`Bids, asks, mark prices and implied volatilities are a real Deribit snapshot taken ${when} CET, shown in USD. The hosted version updates live. No real orders are sent.`;
-  }
-}
-boot();
+/* ---------- boot + refresh ---------- */
+async function refresh(){const r=await load();if(!r){$("livePx").textContent="Market data unavailable";return;}D=r.d;fill(r.live);return r.live;}
+refresh().then(live=>{if(live)setInterval(()=>{if(!document.hidden)refresh();},15000);});
 })();
 </script>
 </body>
