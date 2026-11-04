@@ -21,7 +21,7 @@ img{max-width:100%}
 /* Layout: trading desk — chain | strategy workspace | order ticket, stacked on phones */
 :root{
   --bg:#eaeef2; --panel:#ffffff; --sunk:#f3f6f9; --ink:#0f1a24; --muted:#5b6876; --line:#d5dde4;
-  --accent:#2f56c9; --accent-soft:#e3e9fb; --amber:#b86e0c;
+  --accent:#2f56c9; --accent-soft:#e3e9fb; --on-accent:#ffffff; --amber:#b86e0c;
   --gain:#14805a; --gain-soft:#ddf2e8; --loss:#c03d2c; --loss-soft:#fbe4e0;
   --itm:#f1f4f8;
   --f-ui:"Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
@@ -30,11 +30,11 @@ img{max-width:100%}
 }
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
   --bg:#0b1117; --panel:#111a23; --sunk:#0e161e; --ink:#e4ebf2; --muted:#8a98a7; --line:#223140;
-  --accent:#7c9cff; --accent-soft:#1b2a4d; --amber:#f0a540;
+  --accent:#7c9cff; --accent-soft:#1b2a4d; --on-accent:#0b1117; --amber:#f0a540;
   --gain:#3dcf91; --gain-soft:#12322a; --loss:#ff6f5e; --loss-soft:#3a1b18; --itm:#14202b; color-scheme:dark }}
 :root[data-theme="dark"]{
   --bg:#0b1117; --panel:#111a23; --sunk:#0e161e; --ink:#e4ebf2; --muted:#8a98a7; --line:#223140;
-  --accent:#7c9cff; --accent-soft:#1b2a4d; --amber:#f0a540;
+  --accent:#7c9cff; --accent-soft:#1b2a4d; --on-accent:#0b1117; --amber:#f0a540;
   --gain:#3dcf91; --gain-soft:#12322a; --loss:#ff6f5e; --loss-soft:#3a1b18; --itm:#14202b; color-scheme:dark }
 
 *{box-sizing:border-box}
@@ -104,7 +104,7 @@ table.chain{border-collapse:collapse;width:100%;font-family:var(--f-num);font-si
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chips button{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:5px 11px;font-size:12.5px}
 .chips button:hover{border-color:var(--accent)}
-.chips button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.chips button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 
 /* explain */
 .explain{background:var(--accent-soft);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
@@ -147,9 +147,61 @@ table.chain{border-collapse:collapse;width:100%;font-family:var(--f-num);font-si
 .row span{color:var(--muted)}
 .row b{font-family:var(--f-num);font-weight:500}
 .row.total b{font-size:16px;font-weight:600}
-.approp{border:1px solid var(--amber);border-radius:8px;padding:10px 12px;font-size:12.5px;display:flex;flex-direction:column;gap:8px}
-.approp label{display:flex;gap:8px;align-items:flex-start}
-.primary{border:0;background:var(--accent);color:#fff;border-radius:8px;padding:11px 14px;font-weight:600;font-size:14px}
+/* appropriateness: ticket area */
+.access{display:flex;flex-direction:column;gap:8px;font-size:12.5px}
+.access:empty{display:none}
+.access .box{border:1px solid var(--amber);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.access .box.bad{border-color:var(--loss)}
+.lvl{display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 10px;font-weight:600;font-size:12px;background:var(--accent-soft);color:var(--accent)}
+.chip.warn{background:var(--loss-soft);color:var(--loss)}
+.link{border:0;background:none;padding:0;color:var(--accent);font-size:12.5px;text-decoration:underline;text-underline-offset:2px}
+.need{color:var(--loss)}
+.note{color:var(--amber)}
+.lk{margin-left:6px;font-size:10.5px;font-weight:600;letter-spacing:.04em;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:0 6px}
+.chips button[aria-pressed="true"] .lk{color:var(--on-accent);border-color:currentColor}
+details.rec summary{cursor:pointer;color:var(--muted)}
+details.rec dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;margin:8px 0 6px}
+details.rec dt{color:var(--muted)}
+details.rec dd{margin:0;font-family:var(--f-num);font-size:12px;overflow-wrap:anywhere}
+
+/* appropriateness: dialog */
+dialog#assess{border:1px solid var(--line);border-radius:14px;padding:0;background:var(--panel);color:var(--ink);width:min(640px,calc(100% - 32px));max-height:min(88vh,900px);overflow:hidden}
+dialog#assess[open]{display:flex;flex-direction:column}
+dialog#assess::backdrop{background:rgba(8,14,20,.55)}
+.as-body{padding:20px 22px;display:flex;flex-direction:column;gap:14px;overflow:auto;min-height:0}
+.as-body h2{margin:0;font-size:20px;letter-spacing:-.01em;text-wrap:balance}
+.as-body h2:focus{outline:none}
+.as-body h3{margin:4px 0 0;font-size:14px}
+.as-body p{margin:0;max-width:65ch}
+.as-body ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.as-step{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.as-body fieldset{border:1px solid var(--line);border-radius:10px;padding:10px 12px 12px;margin:0;display:flex;flex-direction:column;gap:2px;min-width:0}
+.as-body fieldset.missing{border-color:var(--loss);box-shadow:0 0 0 1px var(--loss)}
+.as-body legend{font-weight:600;padding:0 4px;max-width:100%}
+.as-body legend small{display:block;font-weight:400;color:var(--muted)}
+.opt{display:flex;gap:10px;align-items:flex-start;padding:6px 8px;border-radius:8px;cursor:pointer}
+.opt:hover{background:var(--sunk)}
+.opt input{margin-top:3px;accent-color:var(--accent);flex:none}
+.opt.dk{color:var(--muted)}
+.as-err{color:var(--loss);font-size:12.5px}
+.as-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 22px;border-top:1px solid var(--line);background:var(--sunk)}
+.as-foot .btns{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
+.btn2{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:10px 14px;font-weight:600;font-size:14px}
+.btn2:hover{border-color:var(--ink)}
+.warnbox{border:2px solid var(--loss);background:var(--loss-soft);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.warnbox b{color:var(--loss);font-size:15px}
+.levels{display:flex;flex-direction:column;gap:6px}
+.levels > div{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 10px;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.levels > div.on{border-color:var(--gain);background:var(--gain-soft)}
+.levels .st{font-family:var(--f-num);font-size:11px;font-weight:600;grid-row:span 2;padding-top:2px}
+.levels .on .st{color:var(--gain)}
+.levels .off .st{color:var(--muted)}
+.levels small{color:var(--muted)}
+.review{display:flex;flex-direction:column;gap:10px}
+.review > div{border-left:3px solid var(--loss);padding:2px 0 2px 10px;display:flex;flex-direction:column;gap:3px}
+.review small{color:var(--muted)}
+.primary{border:0;background:var(--accent);color:var(--on-accent);border-radius:8px;padding:11px 14px;font-weight:600;font-size:14px}
 .primary:disabled{opacity:.45;cursor:not-allowed}
 .msg{font-size:12.5px;min-height:1em}
 .msg.ok{color:var(--gain)} .msg.err{color:var(--loss)}
@@ -217,11 +269,7 @@ table.chain{border-collapse:collapse;width:100%;font-family:var(--f-num);font-si
     <aside class="panel ticket">
       <div class="ph"><h2>Order ticket</h2><span class="sub">Limit at shown prices</span></div>
       <div class="rows" id="ticket"></div>
-      <div class="approp" id="approp">
-        <b>Before your first options trade</b>
-        <span>EU rules (MiFID II) require a short knowledge check before trading complex products. This demo uses a one-step version.</span>
-        <label><input type="checkbox" id="ack"> I understand that bought options can expire worthless and sold options can lose more than the premium received.</label>
-      </div>
+      <div class="access" id="access"></div>
       <button class="primary" id="submit">Place demo order</button>
       <div class="msg" id="msg" role="status"></div>
       <p class="fine">Fees estimated at 0.03% of underlying value per leg, capped at 12.5% of the option price. Required capital equals the maximum loss for defined-risk strategies.</p>
@@ -240,6 +288,11 @@ table.chain{border-collapse:collapse;width:100%;font-family:var(--f-num);font-si
     </div>
   </section>
 </div>
+
+<dialog id="assess" aria-labelledby="asTitle">
+  <div class="as-body" id="asBody"></div>
+  <div class="as-foot" id="asFoot"></div>
+</dialog>
 
 <script>
 (function(){
@@ -376,7 +429,9 @@ function renderChain(){
   $("chainsub").textContent=`${u}-${S.exp} · forward $${px(u,F)} · USD per 1 ${u}`;
 }
 function renderPresets(){
-  $("presets").innerHTML=PRESETS.map((p,i)=>`<button data-p="${i}" aria-pressed="${S.preset===i}">${p[0]}</button>`).join("");
+  const rec=currentRecord(),lv=userLevel();
+  $("presets").innerHTML=PRESETS.map((p,i)=>{const need=presetLevel(i),lock=rec&&!rec.expired&&need>lv;
+    return `<button data-p="${i}" aria-pressed="${S.preset===i}"${lock?` title="Needs options level ${need}"`:""}>${p[0]}${lock?`<span class="lk">Level ${need}</span>`:""}</button>`;}).join("");
   $("stratname").textContent=S.preset===null?(S.legs.length?"Custom":"No legs"):PRESETS[S.preset][0];
 }
 function renderLegs(){
@@ -460,7 +515,7 @@ function hideTip(){$("tip").hidden=true;const cr=$("cross");if(cr)cr.setAttribut
 /* ---------- ticket ---------- */
 function renderTicket(A){
   const lg=S.legs;
-  if(!lg.length){$("ticket").innerHTML=`<div class="empty">No legs in the order.</div>`;$("submit").disabled=true;return;}
+  if(!lg.length){$("ticket").innerHTML=`<div class="empty">No legs in the order.</div>`;renderAccess();$("submit").disabled=true;return;}
   const net=A.net,total=net+A.fe;
   $("ticket").innerHTML=[
     ["Strategy",S.preset===null?"Custom":PRESETS[S.preset][0]],
@@ -470,19 +525,218 @@ function renderTicket(A){
     ["Required capital",usd(A.req,2)],
     ["Cash after order",usd(S.cash-total,2)]
   ].map((r,i)=>`<div class="row${i===4?" total":""}"><span>${r[0]}</span><b>${r[1]}</b></div>`).join("");
-  $("approp").hidden=S.approved;
-  $("submit").disabled=(!S.approved&&!$("ack").checked);
+  renderAccess();
 }
 function submit(){
-  const A=analyze(S.legs,legEntry),msg=$("msg");
+  const A=analyze(S.legs,legEntry),msg=$("msg"),rec=currentRecord();
   if(!S.legs.length)return;
-  if(!S.approved){if(!$("ack").checked){msg.className="msg err";msg.textContent="Confirm the knowledge check to continue.";return;}S.approved=true;}
+  if(!rec||rec.expired){openAssess();return;}
+  const lv=userLevel(),need=reqLevel(S.legs);
+  if(lv===0){openAssess("result");return;}
+  if(need>lv)return;
   if(A.req>S.cash){msg.className="msg err";msg.textContent=`Not enough demo cash. This order needs ${usd(A.req,2)}; you have ${usd(S.cash,2)}. Reduce the size or pick a defined-risk strategy.`;return;}
   const legs=S.legs.map(l=>({...l,entry:legEntry(l)}));
   S.cash-=A.net+A.fe;
   S.positions.unshift({id:S.nid++,name:S.preset===null?"Custom":PRESETS[S.preset][0],legs,fee:A.fe,u:S.u});
+  // Record every order placed under this assessment, and whether it followed a warning.
+  rec.orders=rec.orders||[];rec.orders.push({at:Date.now(),strategy:S.preset===null?"Custom":PRESETS[S.preset][0],level:need,afterWarning:!!rec.warnedAck});saveAS();
   msg.className="msg ok";msg.textContent=`Filled: ${legs.length} leg${legs.length>1?"s":""}, ${A.net>=0?"paid":"received"} ${usd(Math.abs(A.net),2)}.`;
   renderAll();
+}
+
+/* ---------- appropriateness check (MiFID II Art. 25(3), ESMA35-43-2938) ----------
+   Levels: 1 buy options (loss limited to premium) · 2 covered spreads (sold legs covered by bought legs)
+   · 3 uncovered selling. ESMA: no self-assessment, offer "I don't know", limit retries, clients may
+   proceed after a clear warning, keep records. Demo keeps the record in this browser only. */
+const AS_KEY="strikeline.appropriateness.v1",AS_VERSION="2026-11",MAX_TRIES=3,VALID_MS=365*DAY;
+const LEVELS=["Not assessed","Buy options","Spreads","Uncovered selling"];
+const LEVEL_DESC=["",
+  "Buy calls and puts, straddles and strangles. The most you can lose is the premium you pay.",
+  "Also spreads and iron condors. You sell options, but each one is covered by an option you buy, so the maximum loss is known before you trade.",
+  "Also sell options without cover. Losses can be far larger than the premium you receive and have no fixed limit."];
+const EXP=[
+  {id:"e1",text:"How many times have you traded options or futures (incl. perpetuals) in the past 3 years?",opts:[["0","Never"],["1-9","1 to 9 times"],["10-49","10 to 49 times"],["50+","50 times or more"]]},
+  {id:"e2",text:"How long have you been investing or trading?",opts:[["<1","Less than a year"],["1-3","1 to 3 years"],["3+","More than 3 years"]]},
+  {id:"e3",text:"Which of these have you traded yourself?",hint:"Select all that apply.",multi:true,opts:[["stocks","Stocks or ETFs"],["crypto","Crypto (spot)"],["fx","Currencies (FX)"],["options","Options"],["futures","Futures or perpetuals"],["cfd","CFDs"],["none","None of these"]]},
+  {id:"e4",text:"What is the typical size of a single trade for you?",opts:[["<500","Under €500"],["500-5k","€500 to €5,000"],["5k+","Over €5,000"]]},
+  {id:"e5",text:"Does your education or work relate to finance?",opts:[["no","No"],["study","I study or studied finance, economics or maths"],["work","I work or worked in finance"]]}
+];
+const QS=[
+  {id:"q1",sec:"core",text:"You buy a BTC call with a $80,000 strike for a $1,500 premium. At expiry BTC trades at $76,000. What is the result?",
+   opts:[["a","The option expires worthless and you lose the $1,500 premium"],["b","You must buy BTC at $80,000"],["c","You lose $4,000 plus the premium"],["d","You get the premium back because the option was not used"]],right:"a",
+   why:"A call gives you the right, not the obligation, to buy at the strike. Below the strike it is worth nothing at expiry, so the buyer loses the premium and nothing more."},
+  {id:"q2",sec:"core",text:"What is the most you can lose when you buy a put option?",
+   opts:[["a","The premium you paid"],["b","The strike price"],["c","There is no limit"],["d","Twice the premium"]],right:"a",
+   why:"Buying an option never costs more than the premium. The seller carries the larger risk."},
+  {id:"q3",sec:"core",text:"BTC's price and volatility stay exactly the same for two weeks. What usually happens to the value of an option you bought?",
+   opts:[["a","It falls, because less time is left until expiry"],["b","It stays the same"],["c","It rises, because expiry is closer"],["d","It depends only on the strike"]],right:"a",
+   why:"Options lose value as time passes (time decay, or theta). If nothing else moves, a bought option is worth a little less each day."},
+  {id:"q4",sec:"core",text:"Implied volatility rises sharply while BTC's price does not change. What usually happens to option prices?",
+   opts:[["a","Both calls and puts become more expensive"],["b","Calls rise and puts fall"],["c","Both become cheaper"],["d","Nothing, only the BTC price matters"]],right:"a",
+   why:"Higher expected volatility makes large moves more likely in both directions, so calls and puts both gain value (vega)."},
+  {id:"q5",sec:"spread",text:"You buy the $78,000 call and sell the $82,000 call on 1 BTC, paying $1,200 in total. What is your maximum profit at expiry?",
+   opts:[["a","$2,800: the $4,000 between the strikes minus the $1,200 you paid"],["b","Unlimited"],["c","$4,000"],["d","$1,200"]],right:"a",
+   why:"Above $82,000 the sold call offsets further gains, so the spread is worth at most the $4,000 between the strikes. Minus the $1,200 cost, that leaves $2,800."},
+  {id:"q6",sec:"short",text:"You sell a BTC call without owning BTC or holding a higher-strike call. What is your maximum possible loss?",
+   opts:[["a","Unlimited; it can be many times the premium you received"],["b","The premium you received"],["c","The strike price"],["d","Zero, because you received money"]],right:"a",
+   why:"If BTC keeps rising, an uncovered short call keeps losing. There is no upper limit to the price, so there is no limit to the loss."},
+  {id:"q7",sec:"short",text:"You sold an option and the market moves sharply against you. What can happen to your account?",
+   opts:[["a","You may have to add funds, or the position can be closed at a loss"],["b","Nothing happens until expiry"],["c","The exchange covers the loss"],["d","The trade is cancelled at no cost"]],right:"a",
+   why:"Sold options need margin. When losses grow, the broker asks for more funds (a margin call) or closes the position, often at the worst moment."}
+];
+const DK="dk";
+function loadAS(){try{const j=JSON.parse(localStorage.getItem(AS_KEY)||"null");if(j&&typeof j==="object")return j;}catch(e){}return{};}
+const AS=loadAS();AS.tries=Array.isArray(AS.tries)?AS.tries:[];
+function saveAS(){try{localStorage.setItem(AS_KEY,JSON.stringify(AS));}catch(e){}}
+function recentTries(){const now=Date.now();return AS.tries.filter(t=>now-t<DAY);}
+function nextTryAt(){const r=recentTries();return r.length<MAX_TRIES?null:Math.min(...r)+DAY;}
+function currentRecord(){const r=AS.record;if(!r)return null;return Date.now()>r.expires?Object.assign(r,{expired:true}):r;}
+function userLevel(){const r=currentRecord();if(!r||r.expired)return 0;return r.level>0?r.level:(r.warnedAck?1:0);}
+function scoreAssessment(exp,ans){
+  const ok=id=>ans[id]===QS.find(q=>q.id===id).right;
+  const core=["q1","q2","q3","q4"].filter(ok).length,spread=ok("q5"),short=ok("q6")&&ok("q7");
+  const optExp=exp.e1==="10-49"||exp.e1==="50+"||(exp.e1==="1-9"&&exp.e5==="work");
+  let level=0;if(core>=3){level=1;if(spread){level=2;if(short&&optExp)level=3;}}
+  return{core,spread,short,optExp,level};
+}
+// A sold option is covered when bought options of the same type and at least the same expiry match its size.
+function reqLevel(legs){
+  if(!legs.length)return 0;
+  if(!legs.some(l=>l.side<0))return 1;
+  for(const type of ["C","P"]){
+    const sold=legs.filter(l=>l.type===type&&l.side<0);
+    for(const s of sold){
+      const cover=legs.filter(l=>l.type===type&&l.side>0&&l.t>=s.t).reduce((a,l)=>a+l.qty,0);
+      const need=sold.filter(x=>x.t<=s.t).reduce((a,l)=>a+l.qty,0);
+      if(cover+1e-9<need)return 3;
+    }
+  }
+  return 2;
+}
+function presetLevel(i){return reqLevel(PRESETS[i][1].map(([t,o,s])=>({type:t,side:s,qty:1,t:0})));}
+const fmtDay=t=>new Date(t).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric",timeZone:"Europe/Berlin"});
+const fmtTime=t=>new Date(t).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit",timeZone:"Europe/Berlin"});
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const optText=(list,id,key)=>{const q=list.find(x=>x.id===id);if(key===DK)return"I don't know";const o=q&&q.opts.find(x=>x[0]===key);return o?o[1]:"—";};
+
+function renderAccess(){
+  const rec=currentRecord(),lv=userLevel(),need=reqLevel(S.legs),box=$("access"),btn=$("submit");
+  btn.textContent="Place demo order";btn.disabled=!S.legs.length;
+  if(!rec||rec.expired){
+    box.innerHTML=`<div class="box"><b>${rec?"Your knowledge check has expired":"Before your first options trade"}</b>
+      <span>${rec?"Checks are valid for 12 months. Update your answers to keep trading.":"EU rules (MiFID II) require us to check that options are appropriate for you. It takes about 2 minutes."}</span></div>`;
+    btn.textContent=rec?"Update the knowledge check":"Start the knowledge check";btn.disabled=false;return;
+  }
+  const tries=MAX_TRIES-recentTries().length,retake=tries>0?`<button class="link" data-act="retake">Retake the check</button>`:`<span class="sub">Next retake from ${fmtTime(nextTryAt())}</span>`;
+  const sc=rec.score,dl=[
+    ["Record ID",rec.id],["Taken",fmtTime(rec.at)],["Valid until",fmtDay(rec.expires)],["Questionnaire",rec.version],
+    ...EXP.map(e=>[e.text.replace(/\?$/,""),[].concat(rec.experience[e.id]||[]).map(k=>optText(EXP,e.id,k)).join(", ")]),
+    ["Knowledge",`${sc.core}/4 basics · spreads ${sc.spread?"correct":"not correct"} · selling ${sc.short?"correct":"not correct"}`],
+    ["Result",rec.level>0?`Appropriate up to level ${rec.level}`:"Not appropriate (warning shown)"],
+    ["Warning accepted",rec.warnedAck?fmtTime(rec.warnedAck):"—"],["Orders under this check",String((rec.orders||[]).length)]
+  ];
+  const record=`<details class="rec"><summary>Assessment record</summary><dl>${dl.map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
+    <p class="fine">In the live product this record is kept on our servers for at least 5 years. In this demo it stays in your browser.</p></details>`;
+  if(lv===0){
+    box.innerHTML=`<div class="box bad"><b>Options may not be appropriate for you</b><span>Your knowledge check ended with a warning. Review it to decide how to continue.</span>
+      <div class="lvl"><button class="link" data-act="review">Review my result</button>${retake}</div></div>${record}`;
+    btn.textContent="Review my result";btn.disabled=false;return;
+  }
+  let line="";
+  if(S.legs.length&&need>lv){line=`<span class="need">This strategy needs level ${need} (${LEVELS[need].toLowerCase()}). Your level is ${lv}.</span>`;btn.disabled=true;}
+  box.innerHTML=`<div class="lvl"><span class="chip${rec.warnedAck?" warn":""}">Level ${lv} · ${LEVELS[lv]}</span>${retake}</div>
+    ${rec.warnedAck?`<span class="note">You chose to continue after an appropriateness warning. Selling options stays locked.</span>`:""}${line}${record}`;
+}
+
+/* dialog */
+let flow=null;
+function shuffled(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
+function openAssess(step){
+  const prev=AS.record&&!step?AS.record.experience:null;
+  // Pre-fill experience from the last check (ESMA allows this if the client can correct it); never pre-fill knowledge answers.
+  flow={step:step||"intro",exp:prev?JSON.parse(JSON.stringify(prev)):{},ans:{},order:Object.fromEntries(QS.map(q=>[q.id,shuffled(q.opts)])),err:""};
+  drawAssess();const d=$("assess");if(!d.open){try{d.showModal();}catch(e){d.setAttribute("open","");}}
+  focusTitle();
+}
+function closeAssess(){const d=$("assess");if(d.open)d.close();renderAll();}
+function focusTitle(){const h=$("asTitle");if(h)h.focus();$("asBody").scrollTop=0;}
+function radio(name,key,label,checked,multi,dk){return `<label class="opt${dk?" dk":""}"><input type="${multi?"checkbox":"radio"}" name="${name}" value="${key}" id="${name}-${String(key).replace(/[^a-z0-9]/gi,"_")}"${checked?" checked":""}><span>${esc(label)}</span></label>`;}
+function drawAssess(){
+  const B=$("asBody"),F=$("asFoot"),f=flow,tries=MAX_TRIES-recentTries().length;
+  const triesLine=tries>0?`${tries} of ${MAX_TRIES} attempts left in the next 24 hours`:`No attempts left. Next attempt from ${fmtTime(nextTryAt())}`;
+  if(f.step==="intro"){
+    B.innerHTML=`<h2 id="asTitle" tabindex="-1">Options knowledge check</h2>
+      <p>Options are complex products. Before your first trade, EU rules (MiFID II) require us to check that you have the knowledge and experience to understand the risks.</p>
+      <ul><li>5 questions about your trading experience</li><li>7 short questions on how options work. If you are not sure, choose "I don't know". A guess can unlock strategies you are not ready for.</li><li>About 2 minutes. You can take it up to ${MAX_TRIES} times in 24 hours.</li></ul>
+      <h3>What your result unlocks</h3>
+      <div class="levels">${[1,2,3].map(n=>`<div><span class="st">L${n}</span><b>${LEVELS[n]}</b><small>${LEVEL_DESC[n]}</small></div>`).join("")}</div>`;
+    F.innerHTML=`<span class="sub">${triesLine}</span><div class="btns"><button class="btn2" data-act="close">Not now</button>${tries>0?`<button class="primary" data-act="toExp">Start</button>`:""}</div>`;
+  }else if(f.step==="exp"){
+    B.innerHTML=`<span class="as-step">Step 1 of 2 · Your experience</span><h2 id="asTitle" tabindex="-1">Your trading experience</h2>
+      ${EXP.map(e=>`<fieldset id="fs-${e.id}"><legend>${esc(e.text)}${e.hint?`<small>${esc(e.hint)}</small>`:""}</legend>
+        ${e.opts.map(([k,l])=>radio(e.id,k,l,[].concat(f.exp[e.id]||[]).includes(k),e.multi)).join("")}</fieldset>`).join("")}
+      <p class="as-err" id="asErr" role="alert">${esc(f.err)}</p>`;
+    F.innerHTML=`<span class="sub">Answer all 5 questions</span><div class="btns"><button class="btn2" data-act="toIntro">Back</button><button class="primary" data-act="toQuiz">Continue</button></div>`;
+  }else if(f.step==="quiz"){
+    B.innerHTML=`<span class="as-step">Step 2 of 2 · How options work</span><h2 id="asTitle" tabindex="-1">7 questions on options</h2>
+      <p>Prices are examples. Choose "I don't know" rather than guessing.</p>
+      ${QS.map((q,i)=>`<fieldset id="fs-${q.id}"><legend><small>Question ${i+1} of ${QS.length}</small>${esc(q.text)}</legend>
+        ${f.order[q.id].map(([k,l])=>radio(q.id,k,l,f.ans[q.id]===k)).join("")}${radio(q.id,DK,"I don't know",f.ans[q.id]===DK,false,true)}</fieldset>`).join("")}
+      <p class="as-err" id="asErr" role="alert">${esc(f.err)}</p>`;
+    F.innerHTML=`<span class="sub">${triesLine}</span><div class="btns"><button class="btn2" data-act="toExp">Back</button><button class="primary" data-act="finish">See my result</button></div>`;
+  }else{
+    const rec=AS.record,sc=rec.score,lv=rec.level;
+    const wrong=QS.filter(q=>rec.answers[q.id]!==q.right);
+    const why=n=>n===1?"Answer at least 3 of questions 1 to 4 correctly.":n===2?"Answer question 5 on spreads correctly.":
+      `Answer questions 6 and 7 on selling options correctly${sc.optExp?"":", and have traded options or futures at least 10 times in the past 3 years (1 to 9 times if you work in finance)"}.`;
+    const levels=`<div class="levels">${[1,2,3].map(n=>{const on=n<=lv||(n===1&&rec.warnedAck);
+      return `<div class="${on?"on":"off"}"><span class="st">${on?"OPEN":"LOCKED"}</span><b>Level ${n} · ${LEVELS[n]}</b><small>${on?LEVEL_DESC[n]:why(n)}</small></div>`;}).join("")}</div>`;
+    const review=wrong.length?`<h3>Questions to review</h3><div class="review">${wrong.map(q=>`<div><b>${esc(q.text)}</b>
+      <small>Your answer: ${esc(optText(QS,q.id,rec.answers[q.id]))}</small><span>Correct: ${esc(optText(QS,q.id,q.right))}. ${esc(q.why)}</span></div>`).join("")}</div>`:`<p>You answered all 7 questions correctly.</p>`;
+    if(lv>0){
+      B.innerHTML=`<span class="as-step">Result</span><h2 id="asTitle" tabindex="-1">Your options level: ${lv} · ${LEVELS[lv]}</h2>
+        <p>You answered ${7-wrong.length} of 7 questions correctly.${lv<3?" You can retake the check to unlock more.":""}</p>${levels}${review}`;
+      F.innerHTML=`<span class="sub">${triesLine}</span><div class="btns"><button class="primary" data-act="close">Start trading</button></div>`;
+    }else{
+      B.innerHTML=`<span class="as-step">Result</span><h2 id="asTitle" tabindex="-1">Options may not be appropriate for you</h2>
+        <div class="warnbox" role="alert"><b>Warning: based on your answers, options are not appropriate for you.</b>
+        <span>You answered ${sc.core} of the 4 basic questions on how options work correctly. Options can lose their whole value within days, and their price depends on time and volatility as well as on the BTC or ETH price. Without this knowledge you may lose money in ways you do not expect.</span>
+        <span>You can still continue, but only with buying options, where the most you can lose is the premium you pay. Selling options stays locked.</span></div>
+        ${rec.warnedAck?`<p class="note">You accepted this warning on ${fmtTime(rec.warnedAck)}.</p>`:""}${review}`;
+      F.innerHTML=`<span class="sub">${triesLine}</span><div class="btns">${rec.warnedAck?`<button class="primary" data-act="close">Close</button>`:
+        `<button class="btn2" data-act="close">Not now</button><button class="btn2" data-act="accept">I understand the risk, let me buy options</button>`}</div>`;
+    }
+  }
+}
+function readStep(){
+  const B=$("asBody"),list=flow.step==="exp"?EXP:QS,miss=[];
+  for(const q of list){
+    const vals=[...B.querySelectorAll(`input[name="${q.id}"]:checked`)].map(i=>i.value);
+    if(q.multi){let v=vals;if(v.includes("none")&&v.length>1)v=v.filter(x=>x!=="none");flow.exp[q.id]=v;}
+    else if(vals[0]!==undefined){(flow.step==="exp"?flow.exp:flow.ans)[q.id]=vals[0];}
+    const fs=$("fs-"+q.id),has=vals.length>0;if(fs)fs.classList.toggle("missing",!has);if(!has)miss.push(q.id);
+  }
+  return miss;
+}
+function assessAction(act){
+  const f=flow;
+  if(act==="close"){closeAssess();return;}
+  if(act==="toIntro"){readStep();f.err="";f.step="intro";}
+  else if(act==="toExp"){if(f.step==="quiz")readStep();if(f.step==="intro"&&nextTryAt())return;f.err="";f.step="exp";}
+  else if(act==="toQuiz"){const miss=readStep();if(miss.length){f.err=`Answer the ${miss.length===1?"highlighted question":miss.length+" highlighted questions"} to continue.`;$("asErr").textContent=f.err;$("fs-"+miss[0]).scrollIntoView({block:"center"});$("fs-"+miss[0]).querySelector("input").focus();return;}f.err="";f.step="quiz";}
+  else if(act==="finish"){
+    const miss=readStep();
+    if(miss.length){f.err=`Answer the ${miss.length===1?"highlighted question":miss.length+" highlighted questions"} to continue. "I don't know" is a valid answer.`;$("asErr").textContent=f.err;$("fs-"+miss[0]).scrollIntoView({block:"center"});$("fs-"+miss[0]).querySelector("input").focus();return;}
+    if(nextTryAt()){f.err="You have used all attempts for now.";$("asErr").textContent=f.err;return;}
+    const now=Date.now(),sc=scoreAssessment(f.exp,f.ans);AS.tries.push(now);
+    AS.record={id:"SL-"+now.toString(36).toUpperCase()+"-"+Math.random().toString(36).slice(2,6).toUpperCase(),version:AS_VERSION,at:now,expires:now+VALID_MS,
+      experience:f.exp,answers:f.ans,score:{core:sc.core,spread:sc.spread,short:sc.short,optExp:sc.optExp},level:sc.level,warnedAck:null,orders:[]};
+    saveAS();f.step="result";
+  }
+  else if(act==="accept"){AS.record.warnedAck=Date.now();saveAS();}
+  else if(act==="review"){openAssess("result");return;}
+  else if(act==="retake"){openAssess();return;}
+  drawAssess();focusTitle();
 }
 
 /* ---------- scenarios & positions ---------- */
@@ -541,7 +795,14 @@ function wire(){
   $("legs").addEventListener("input",e=>{const i=e.target.closest("[data-q]");if(!i)return;const l=S.legs.find(x=>x.id==i.dataset.q);
     const v=parseFloat(i.value);if(isFinite(v)&&v>0){l.qty=+(Math.max(U[l.u].minQ,v)).toFixed(U[l.u].qdp);renderAll();}});
   $("tday").addEventListener("input",e=>{S.tday=+e.target.value;renderAll();});
-  $("ack").addEventListener("change",()=>renderTicket(analyze(S.legs,legEntry)));
+  $("access").addEventListener("click",e=>{const b=e.target.closest("[data-act]");if(b)assessAction(b.dataset.act);});
+  const dlg=$("assess");
+  dlg.addEventListener("click",e=>{const b=e.target.closest("button[data-act]");if(b)assessAction(b.dataset.act);});
+  dlg.addEventListener("change",e=>{const fs=e.target.closest("fieldset");if(fs)fs.classList.remove("missing");
+    if(e.target.name==="e3"){const boxes=[...fs.querySelectorAll("input")];  // "None of these" excludes the others
+      if(e.target.value==="none"&&e.target.checked)boxes.forEach(i=>{if(i.value!=="none")i.checked=false;});
+      else if(e.target.checked)boxes.forEach(i=>{if(i.value==="none")i.checked=false;});}});
+  dlg.addEventListener("close",()=>renderAll());
   $("submit").addEventListener("click",submit);
   $("pos").addEventListener("click",e=>{const b=e.target.closest("[data-close]");if(b)closePos(+b.dataset.close);});
   const svg=$("chart");svg.addEventListener("mousemove",chartHover);svg.addEventListener("touchmove",chartHover,{passive:true});svg.addEventListener("mouseleave",hideTip);svg.addEventListener("touchend",hideTip);

@@ -39,5 +39,16 @@ Import the repository on [vercel.com/new](https://vercel.com/new). No build sett
 ## Next steps
 
 - Connect a licensed broker or exchange API for real order routing (see partner options: Interactive Brokers introducing-broker program, Alpaca Broker API, a German *Haftungsdach* provider).
-- MiFID II appropriateness test as a proper multi-question flow.
-- Accounts and persistent positions.
+- Accounts and persistent positions; move the appropriateness record server-side (MiFID II record-keeping, 5 years).
+
+## Appropriateness check (MiFID II Art. 25(3))
+
+Before the first order the client takes a knowledge check built along ESMA's appropriateness guidelines (ESMA35-43-2938): 5 experience questions (Art. 55 Delegated Regulation 2017/565: products traded, frequency, period, size, education/profession) and 7 knowledge questions with an "I don't know" option and shuffled answers. No self-assessment checkbox.
+
+| Level | Unlocks | Needs |
+| --- | --- | --- |
+| 1 · Buy options | Long calls/puts, straddles, strangles | 3 of 4 basic questions |
+| 2 · Spreads | Covered spreads, iron condors | Level 1 + spread question |
+| 3 · Uncovered selling | Naked short calls/puts | Level 2 + both short-option questions + 10+ options/futures trades in 3 years (1–9 if working in finance) |
+
+A failed check shows a clear warning; the client may proceed with buying options only after accepting it. Retakes are limited to 3 per 24 hours, checks expire after 12 months, and every order is logged against the assessment record. In this demo the record lives in the browser.
