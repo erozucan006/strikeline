@@ -165,7 +165,22 @@ details.rec dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12p
 details.rec dt{color:var(--muted)}
 details.rec dd{margin:0;font-family:var(--f-num);font-size:12px;overflow-wrap:anywhere}
 
+/* accounts */
+.auth{display:flex;align-items:center;gap:10px;font-size:12.5px;min-width:0}
+.auth:empty{display:none}
+.auth .who{color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btn2.sm{padding:6px 12px;font-size:13px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-weight:600;font-size:13px}
+.field input{font:inherit;font-size:15px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink)}
+.field input[aria-invalid="true"]{border-color:var(--loss)}
+.saved{font-size:11.5px;color:var(--muted)}
+.pos-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12.5px}
+
 /* appropriateness: dialog */
+dialog#signin{border:1px solid var(--line);border-radius:14px;padding:0;background:var(--panel);color:var(--ink);width:min(460px,calc(100% - 32px))}
+dialog#signin[open]{display:flex;flex-direction:column}
+dialog#signin::backdrop{background:rgba(8,14,20,.55)}
 dialog#assess{border:1px solid var(--line);border-radius:14px;padding:0;background:var(--panel);color:var(--ink);width:min(640px,calc(100% - 32px));max-height:min(88vh,900px);overflow:hidden}
 dialog#assess[open]{display:flex;flex-direction:column}
 dialog#assess::backdrop{background:rgba(8,14,20,.55)}
@@ -243,6 +258,7 @@ dialog#assess::backdrop{background:rgba(8,14,20,.55)}
       <div>Demo cash<b id="cash">—</b></div>
       <div>Equity<b id="equity">—</b></div>
     </div>
+    <div class="auth" id="auth"></div>
   </header>
   <p class="notice" id="notice">Loading Deribit option quotes…</p>
 
@@ -288,6 +304,21 @@ dialog#assess::backdrop{background:rgba(8,14,20,.55)}
     </div>
   </section>
 </div>
+
+<dialog id="signin" aria-labelledby="siTitle">
+  <form class="as-body" id="siForm" novalidate>
+    <h2 id="siTitle" tabindex="-1">Sign in to Strikeline</h2>
+    <p id="siText">We email you a sign-in link, so there is no password to remember. Your knowledge check, demo balance and positions are saved to your account.</p>
+    <div class="field" id="siField">
+      <label for="siEmail">Email</label>
+      <input id="siEmail" name="email" type="email" autocomplete="email" inputmode="email" required>
+    </div>
+    <p class="as-err" id="siErr" role="alert"></p>
+  </form>
+  <div class="as-foot"><span class="sub">Demo account. No real money.</span>
+    <div class="btns"><button class="btn2" type="button" id="siClose">Cancel</button><button class="primary" type="submit" form="siForm" id="siSend">Email me a link</button></div>
+  </div>
+</dialog>
 
 <dialog id="assess" aria-labelledby="asTitle">
   <div class="as-body" id="asBody"></div>
@@ -527,21 +558,110 @@ function renderTicket(A){
   ].map((r,i)=>`<div class="row${i===4?" total":""}"><span>${r[0]}</span><b>${r[1]}</b></div>`).join("");
   renderAccess();
 }
-function submit(){
+async function submit(){
   const A=analyze(S.legs,legEntry),msg=$("msg"),rec=currentRecord();
-  if(!S.legs.length)return;
+  if(!S.legs.length||ACC.busy)return;
   if(!rec||rec.expired){openAssess();return;}
   const lv=userLevel(),need=reqLevel(S.legs);
   if(lv===0){openAssess("result");return;}
   if(need>lv)return;
   if(A.req>S.cash){msg.className="msg err";msg.textContent=`Not enough demo cash. This order needs ${usd(A.req,2)}; you have ${usd(S.cash,2)}. Reduce the size or pick a defined-risk strategy.`;return;}
-  const legs=S.legs.map(l=>({...l,entry:legEntry(l)}));
-  S.cash-=A.net+A.fe;
-  S.positions.unshift({id:S.nid++,name:S.preset===null?"Custom":PRESETS[S.preset][0],legs,fee:A.fe,u:S.u});
-  // Record every order placed under this assessment, and whether it followed a warning.
-  rec.orders=rec.orders||[];rec.orders.push({at:Date.now(),strategy:S.preset===null?"Custom":PRESETS[S.preset][0],level:need,afterWarning:!!rec.warnedAck});saveAS();
-  msg.className="msg ok";msg.textContent=`Filled: ${legs.length} leg${legs.length>1?"s":""}, ${A.net>=0?"paid":"received"} ${usd(Math.abs(A.net),2)}.`;
+  const name=S.preset===null?"Custom":PRESETS[S.preset][0];
+  const legs=S.legs.map(l=>({id:l.id,u:l.u,type:l.type,K:l.K,e:l.e,t:l.t,side:l.side,qty:l.qty,entry:+legEntry(l).toFixed(4)}));
+  if(ACC.user){
+    // The server re-checks level, fee bounds and cash, then books the order against the assessment.
+    const r=await serverCall("place_order",{p_name:name,p_underlying:S.u,p_legs:legs,p_fee:+A.fe.toFixed(2),p_required:+A.req.toFixed(2)});
+    if(!r)return;
+    await loadServerState();  // cash, positions and the order count come back from the server, rounded as booked
+  }else{
+    S.positions.unshift({id:S.nid++,name,legs,fee:A.fe,u:S.u});
+    // Record every order placed under this assessment, and whether it followed a warning.
+    rec.orders=rec.orders||[];rec.orders.push({at:Date.now(),strategy:name,level:need,afterWarning:!!rec.warnedAck});saveAS();
+  }
+  if(!ACC.user)S.cash-=A.net+A.fe;
+  msg.className="msg ok";msg.textContent=`Filled: ${legs.length} leg${legs.length>1?"s":""}, ${A.net>=0?"paid":"received"} ${usd(Math.abs(A.net),2)}.`+(ACC.user?" Saved to your account.":"");
   renderAll();
+}
+
+/* ---------- accounts (Supabase): sign-in by emailed link; server is the record when signed in ---------- */
+const ACC={sb:null,user:null,ready:false,busy:false};
+const SB_JS="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js";
+const SERVER_ERRORS={
+  level_required:"Your options level does not allow this strategy.",
+  insufficient_cash:"Not enough demo cash for this order.",
+  assessment_required:"Take the knowledge check first.",
+  attempt_limit:"You have used all 3 attempts in the last 24 hours. Try again later.",
+  warning_not_open:"This warning was already answered. Reload the page to see the latest state.",
+  position_not_open:"This position is already closed. Reload the page to see the latest state.",
+  not_signed_in:"Your session ended. Sign in again to continue.",
+  invalid_legs:"One of the options in this order has expired or is not valid. Refresh the strategy and try again."
+};
+function serverMessage(err){const m=String(err&&err.message||"");for(const k in SERVER_ERRORS)if(m.includes(k))return SERVER_ERRORS[k];
+  return "The server did not accept this. Check your connection and try again.";}
+async function serverCall(fn,args){
+  ACC.busy=true;$("submit").disabled=true;
+  try{const {data,error}=await ACC.sb.rpc(fn,args);
+    if(error){const msg=$("msg");msg.className="msg err";msg.textContent=serverMessage(error);return null;}
+    return data;}
+  catch(e){const msg=$("msg");msg.className="msg err";msg.textContent="Could not reach the server. Check your connection and try again.";return null;}
+  finally{ACC.busy=false;renderTicket(analyze(S.legs,legEntry));}
+}
+function loadScript(src){return new Promise((ok,no)=>{const s=document.createElement("script");s.src=src;s.onload=ok;s.onerror=no;document.head.appendChild(s);});}
+function fromServer(a,orderCount){return{id:a.id,version:a.version,at:Date.parse(a.created_at),expires:Date.parse(a.expires_at),experience:a.experience,
+  answers:a.answers,score:a.score,level:Number(a.level),warnedAck:a.warned_ack_at?Date.parse(a.warned_ack_at):null,orderCount:orderCount||0,server:true};}
+async function initAccounts(){
+  let cfg=null;
+  try{const r=await fetch("api/config",{cache:"no-store"});if(r.ok)cfg=await r.json();}catch(e){}
+  if(!cfg||!cfg.url||!cfg.anonKey)return;          // not configured (or the artifact preview): stay in guest mode
+  try{await loadScript(SB_JS);}catch(e){return;}
+  ACC.sb=window.supabase.createClient(cfg.url,cfg.anonKey,{auth:{persistSession:true,detectSessionInUrl:true,flowType:"implicit"}});
+  const {data}=await ACC.sb.auth.getSession();
+  ACC.user=data&&data.session?data.session.user:null;ACC.ready=true;
+  ACC.sb.auth.onAuthStateChange((ev,session)=>{
+    const id=session&&session.user?session.user.id:null;
+    if(ev==="SIGNED_OUT"){location.reload();return;}  // back to this browser's guest data
+    if(id&&id!==(ACC.user&&ACC.user.id)){ACC.user=session.user;closeSignin();loadServerState();}
+  });
+  renderAuth();
+  if(ACC.user)await loadServerState();
+}
+async function loadServerState(){
+  renderAuth();
+  const {data,error}=await ACC.sb.rpc("my_state");
+  if(error){$("notice").textContent="Signed in, but your saved data did not load. Reload the page to try again.";return;}
+  S.cash=Number(data.cash);
+  S.positions=(data.positions||[]).map(p=>({id:p.id,name:p.name,legs:p.legs,fee:Number(p.fee),u:p.underlying}));
+  AS.tries=(data.tries24h||[]).map(Number);
+  AS.record=data.assessment?fromServer(data.assessment,data.orders):null;
+  renderAll();
+}
+function renderAuth(){
+  const el=$("auth");if(!ACC.ready){el.innerHTML="";return;}
+  el.innerHTML=ACC.user?`<span class="who" title="${esc(ACC.user.email||"")}">${esc(ACC.user.email||"Signed in")}</span><button class="link" data-auth="out">Sign out</button>`
+    :`<button class="btn2 sm" data-auth="in">Sign in</button>`;
+}
+function openSignin(){
+  const d=$("signin");$("siErr").textContent="";$("siField").hidden=false;$("siSend").hidden=false;$("siSend").disabled=false;
+  $("siText").textContent="We email you a sign-in link, so there is no password to remember. Your knowledge check, demo balance and positions are saved to your account.";
+  $("siEmail").removeAttribute("aria-invalid");$("siClose").textContent="Cancel";
+  if(!d.open){try{d.showModal();}catch(e){d.setAttribute("open","");}}$("siEmail").focus();
+}
+function closeSignin(){const d=$("signin");if(d.open)d.close();}
+async function sendLink(e){
+  e.preventDefault();
+  const inp=$("siEmail"),email=inp.value.trim(),err=$("siErr");
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){inp.setAttribute("aria-invalid","true");err.textContent="Enter your full email address, like name@example.com.";inp.focus();return;}
+  inp.removeAttribute("aria-invalid");$("siSend").disabled=true;err.textContent="";
+  const {error}=await ACC.sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
+  $("siSend").disabled=false;
+  if(error){err.textContent=/rate|security purposes|seconds/i.test(error.message)?"Too many sign-in emails were sent. Wait a minute and try again.":"The link could not be sent. Check the address and try again.";return;}
+  $("siTitle").textContent="Check your inbox";
+  $("siText").textContent=`We sent a sign-in link to ${email}. Open it on this device to finish signing in. You can close this window.`;
+  $("siField").hidden=true;$("siSend").hidden=true;$("siClose").textContent="Close";$("siTitle").focus();
+}
+async function resetAccount(){
+  const r=await serverCall("reset_account",{});if(!r)return;
+  $("msg").textContent="";await loadServerState();
 }
 
 /* ---------- appropriateness check (MiFID II Art. 25(3), ESMA35-43-2938) ----------
@@ -587,7 +707,7 @@ const QS=[
 const DK="dk";
 function loadAS(){try{const j=JSON.parse(localStorage.getItem(AS_KEY)||"null");if(j&&typeof j==="object")return j;}catch(e){}return{};}
 const AS=loadAS();AS.tries=Array.isArray(AS.tries)?AS.tries:[];
-function saveAS(){try{localStorage.setItem(AS_KEY,JSON.stringify(AS));}catch(e){}}
+function saveAS(){if(ACC.user)return;try{localStorage.setItem(AS_KEY,JSON.stringify(AS));}catch(e){}}  // signed in: the server keeps the record
 function recentTries(){const now=Date.now();return AS.tries.filter(t=>now-t<DAY);}
 function nextTryAt(){const r=recentTries();return r.length<MAX_TRIES?null:Math.min(...r)+DAY;}
 function currentRecord(){const r=AS.record;if(!r)return null;return Date.now()>r.expires?Object.assign(r,{expired:true}):r;}
@@ -633,10 +753,11 @@ function renderAccess(){
     ...EXP.map(e=>[e.text.replace(/\?$/,""),[].concat(rec.experience[e.id]||[]).map(k=>optText(EXP,e.id,k)).join(", ")]),
     ["Knowledge",`${sc.core}/4 basics · spreads ${sc.spread?"correct":"not correct"} · selling ${sc.short?"correct":"not correct"}`],
     ["Result",rec.level>0?`Appropriate up to level ${rec.level}`:"Not appropriate (warning shown)"],
-    ["Warning accepted",rec.warnedAck?fmtTime(rec.warnedAck):"—"],["Orders under this check",String((rec.orders||[]).length)]
+    ["Warning accepted",rec.warnedAck?fmtTime(rec.warnedAck):"—"],["Orders under this check",String(rec.orderCount??(rec.orders||[]).length)]
   ];
   const record=`<details class="rec"><summary>Assessment record</summary><dl>${dl.map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
-    <p class="fine">In the live product this record is kept on our servers for at least 5 years. In this demo it stays in your browser.</p></details>`;
+    <p class="fine">${rec.server?"Saved to your account. In the live product it is kept for at least 5 years.":
+      ACC.sb?"Saved in this browser only. Sign in to keep it on your account.":"In the live product this record is kept on our servers for at least 5 years. In this demo it stays in your browser."}</p></details>`;
   if(lv===0){
     box.innerHTML=`<div class="box bad"><b>Options may not be appropriate for you</b><span>Your knowledge check ended with a warning. Review it to decide how to continue.</span>
       <div class="lvl"><button class="link" data-act="review">Review my result</button>${retake}</div></div>${record}`;
@@ -702,7 +823,8 @@ function drawAssess(){
         <div class="warnbox" role="alert"><b>Warning: based on your answers, options are not appropriate for you.</b>
         <span>You answered ${sc.core} of the 4 basic questions on how options work correctly. Options can lose their whole value within days, and their price depends on time and volatility as well as on the BTC or ETH price. Without this knowledge you may lose money in ways you do not expect.</span>
         <span>You can still continue, but only with buying options, where the most you can lose is the premium you pay. Selling options stays locked.</span></div>
-        ${rec.warnedAck?`<p class="note">You accepted this warning on ${fmtTime(rec.warnedAck)}.</p>`:""}${review}`;
+        ${rec.warnedAck?`<p class="note">You accepted this warning on ${fmtTime(rec.warnedAck)}.</p>`:""}
+        <p class="as-err" id="asErr" role="alert">${esc(f.err)}</p>${review}`;
       F.innerHTML=`<span class="sub">${triesLine}</span><div class="btns">${rec.warnedAck?`<button class="primary" data-act="close">Close</button>`:
         `<button class="btn2" data-act="close">Not now</button><button class="btn2" data-act="accept">I understand the risk, let me buy options</button>`}</div>`;
     }
@@ -718,7 +840,7 @@ function readStep(){
   }
   return miss;
 }
-function assessAction(act){
+async function assessAction(act){
   const f=flow;
   if(act==="close"){closeAssess();return;}
   if(act==="toIntro"){readStep();f.err="";f.step="intro";}
@@ -728,12 +850,26 @@ function assessAction(act){
     const miss=readStep();
     if(miss.length){f.err=`Answer the ${miss.length===1?"highlighted question":miss.length+" highlighted questions"} to continue. "I don't know" is a valid answer.`;$("asErr").textContent=f.err;$("fs-"+miss[0]).scrollIntoView({block:"center"});$("fs-"+miss[0]).querySelector("input").focus();return;}
     if(nextTryAt()){f.err="You have used all attempts for now.";$("asErr").textContent=f.err;return;}
-    const now=Date.now(),sc=scoreAssessment(f.exp,f.ans);AS.tries.push(now);
-    AS.record={id:"SL-"+now.toString(36).toUpperCase()+"-"+Math.random().toString(36).slice(2,6).toUpperCase(),version:AS_VERSION,at:now,expires:now+VALID_MS,
-      experience:f.exp,answers:f.ans,score:{core:sc.core,spread:sc.spread,short:sc.short,optExp:sc.optExp},level:sc.level,warnedAck:null,orders:[]};
-    saveAS();f.step="result";
+    if(ACC.user){
+      // Scored on the server with an answer key the browser never sees.
+      const btn=$("asFoot").querySelector('[data-act="finish"]');btn.disabled=true;btn.textContent="Checking…";
+      let res;try{res=await ACC.sb.rpc("submit_assessment",{p_version:AS_VERSION,p_experience:f.exp,p_answers:f.ans});}catch(e){res={error:{message:"network"}};}
+      if(res.error){btn.disabled=false;btn.textContent="See my result";f.err=serverMessage(res.error);$("asErr").textContent=f.err;return;}
+      AS.tries.push(Date.parse(res.data.created_at));AS.record=fromServer(res.data,0);
+    }else{
+      const now=Date.now(),sc=scoreAssessment(f.exp,f.ans);AS.tries.push(now);
+      AS.record={id:"SL-"+now.toString(36).toUpperCase()+"-"+Math.random().toString(36).slice(2,6).toUpperCase(),version:AS_VERSION,at:now,expires:now+VALID_MS,
+        experience:f.exp,answers:f.ans,score:{core:sc.core,spread:sc.spread,short:sc.short,optExp:sc.optExp},level:sc.level,warnedAck:null,orders:[]};
+      saveAS();
+    }
+    f.step="result";
   }
-  else if(act==="accept"){AS.record.warnedAck=Date.now();saveAS();}
+  else if(act==="accept"){
+    if(ACC.user){let res;try{res=await ACC.sb.rpc("accept_warning",{p_id:AS.record.id});}catch(e){res={error:{message:"network"}};}
+      if(res.error){f.err=serverMessage(res.error);drawAssess();return;}
+      AS.record=fromServer(res.data,AS.record.orderCount);}
+    else{AS.record.warnedAck=Date.now();saveAS();}
+  }
   else if(act==="review"){openAssess("result");return;}
   else if(act==="retake"){openAssess();return;}
   drawAssess();focusTitle();
@@ -753,8 +889,11 @@ function renderScen(){
   $("scensub").textContent=T<0.5?"Valued today":`Valued in ${Math.round(T)} days`;
 }
 function renderPos(){
-  if(!S.positions.length){$("pos").innerHTML=`<div class="empty">No open positions. Placed demo orders show up here with P&amp;L marked to Deribit mid prices.</div>`;$("possub").textContent="";return;}
-  $("pos").innerHTML=S.positions.map(p=>{
+  const tools=ACC.user?`<div class="pos-actions"><span class="saved">Saved to your account</span>${S.resetAsk?
+    `<span>Close all positions and reset cash to $10,000?</span><button class="ghost" data-reset="yes">Reset balance</button><button class="link" data-reset="no">Keep</button>`:
+    `<button class="link" data-reset="ask">Reset demo balance</button>`}</div>`:"";
+  if(!S.positions.length){$("pos").innerHTML=`<div class="empty">No open positions. Placed demo orders show up here with P&amp;L marked to Deribit mid prices.</div>`+tools;$("possub").textContent="";return;}
+  $("pos").innerHTML=tools+S.positions.map(p=>{
     let val=0,cost=0;for(const l of p.legs){const q=legQuote(l);val+=l.side*l.qty*q.mid;cost+=l.side*l.qty*l.entry;}
     const pl=val-cost-p.fee,d=Math.max(0,minDays(p.legs));
     return `<div class="pcard"><div class="top2"><b>${p.name} · ${p.u}</b><span class="num ${pl>=0?"up":"down"}">${sgn(pl,2)}</span></div>
@@ -762,10 +901,11 @@ function renderPos(){
       <div class="top2"><small>${d.toFixed(1)} days to first expiry · fees ${usd(p.fee,2)}</small><button class="ghost" data-close="${p.id}">Close at mid</button></div></div>`;}).join("");
   $("possub").textContent=S.positions.length+" open";
 }
-function closePos(id){
-  const i=S.positions.findIndex(p=>p.id===id);if(i<0)return;const p=S.positions[i];
+async function closePos(id){
+  const i=S.positions.findIndex(p=>String(p.id)===String(id));if(i<0||ACC.busy)return;const p=S.positions[i];
   let val=0;for(const l of p.legs)val+=l.side*l.qty*legQuote(l).mid;
-  S.cash+=val;S.positions.splice(i,1);renderAll();
+  if(ACC.user){const r=await serverCall("close_position",{p_id:p.id,p_value:+val.toFixed(2)});if(r)await loadServerState();return;}
+  const j=S.positions.indexOf(p);if(j>=0)S.positions.splice(j,1);S.cash+=val;renderAll();
 }
 
 /* ---------- render all ---------- */
@@ -803,6 +943,12 @@ function wire(){
       if(e.target.value==="none"&&e.target.checked)boxes.forEach(i=>{if(i.value!=="none")i.checked=false;});
       else if(e.target.checked)boxes.forEach(i=>{if(i.value==="none")i.checked=false;});}});
   dlg.addEventListener("close",()=>renderAll());
+  $("auth").addEventListener("click",async e=>{const b=e.target.closest("[data-auth]");if(!b||!ACC.sb)return;
+    if(b.dataset.auth==="in")openSignin();else{b.disabled=true;await ACC.sb.auth.signOut();location.reload();}});
+  $("siForm").addEventListener("submit",sendLink);
+  $("siClose").addEventListener("click",closeSignin);
+  $("pos").addEventListener("click",e=>{const b=e.target.closest("[data-reset]");if(!b)return;
+    if(b.dataset.reset==="ask")S.resetAsk=true;else if(b.dataset.reset==="no")S.resetAsk=false;else{S.resetAsk=false;resetAccount();return;}renderPos();});
   $("submit").addEventListener("click",submit);
   $("pos").addEventListener("click",e=>{const b=e.target.closest("[data-close]");if(b)closePos(+b.dataset.close);});
   const svg=$("chart");svg.addEventListener("mousemove",chartHover);svg.addEventListener("touchmove",chartHover,{passive:true});svg.addEventListener("mouseleave",hideTip);svg.addEventListener("touchend",hideTip);
@@ -833,6 +979,7 @@ async function boot(){
   if(!data){try{data=await getJson("snapshot.json");}catch(e){}}
   if(!data){$("notice").textContent="Market data did not load. Check your connection and reload the page.";setStatus("stale","No data");return;}
   apply(data);wire();applyPreset(2);
+  initAccounts();
   if(live){
     setStatus("live","Live · Deribit · "+clock(data.ts));
     $("notice").textContent="Bids, asks, mark prices and implied volatilities are live from Deribit's public market data, refreshed every 15 seconds and shown in USD. No real orders are sent.";

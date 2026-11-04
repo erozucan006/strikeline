@@ -19,27 +19,54 @@ browser ──every 15 s──▶ /api/chain (Vercel function, Frankfurt) ──
 | `index.html` | The whole app: chain, strategy builder, payoff chart, ticket, positions |
 | `api/chain.js` | Serverless function that fetches and returns the live chain |
 | `api/_snapshot.js` | Pure transform from Deribit's raw data to the chain format (tested) |
+| `api/config.js` | Hands the page the public Supabase URL and anon key (never the service key) |
+| `supabase/migrations/` | Database: tables, row level security and the server functions for accounts |
 | `snapshot.json` | Bundled fallback the page uses if the function is unreachable |
-| `test/` | Unit tests on a real Deribit sample, plus a local preview server |
+| `test/` | Unit and database tests, plus a local preview server |
 
 ## Run locally
 
 ```bash
-npm test                      # transform + function tests
+npm test                      # transform, function and (with PGlite) database tests
 node test/serve.js            # preview on http://localhost:4173 using the recorded Deribit sample
 node test/serve.js --upstream # same, but calls Deribit for real
+node test/serve.js --db       # also turns on accounts, backed by the real SQL in an in-process Postgres
 ```
 
-No dependencies to install; Node 20 or newer.
+Node 20 or newer. The app has no runtime dependencies; database tests and `--db` need `npm i --no-save @electric-sql/pglite@0.2.17`.
 
 ## Deploy
 
-Import the repository on [vercel.com/new](https://vercel.com/new). No build settings are needed: Vercel serves `index.html` and turns `api/chain.js` into a function. `vercel.json` pins the function to Frankfurt (`fra1`).
+Import the repository on [vercel.com/new](https://vercel.com/new). No build settings are needed: Vercel serves `index.html` and turns `api/*.js` into functions. `vercel.json` pins them to Frankfurt (`fra1`).
+
+### Accounts (optional)
+
+Without Supabase the app runs in guest mode and keeps everything in the browser. To turn on accounts:
+
+1. In the Vercel project: **Storage → Create Database → Supabase**, connected to this project. This adds `SUPABASE_URL` and `SUPABASE_ANON_KEY`.
+2. In Supabase: **SQL Editor** → run `supabase/migrations/001_accounts.sql`.
+3. In Supabase: **Authentication → URL Configuration** → set **Site URL** to the deployed address and add it under **Redirect URLs**.
+4. Redeploy on Vercel so the functions pick up the new variables.
+
+Sign-in is by emailed link. Supabase's built-in mail sender allows only a few emails per hour; connect your own SMTP under Authentication → Emails before real users arrive.
+
+### Who can change what
+
+The browser reads its own rows through row level security and cannot write any table directly. Every change goes through a `SECURITY DEFINER` function that checks the signed-in user:
+
+| Function | Server checks |
+| --- | --- |
+| `submit_assessment` | Scores answers with a key the browser never sees; 3 attempts per 24 h; validates every answer |
+| `accept_warning` | Only the latest, failed, unanswered assessment |
+| `place_order` | Required level from the legs (covered vs uncovered), fee bounds, expiry in the future, enough cash; logs the order against the assessment and whether it followed a warning |
+| `close_position` / `reset_account` | Own open positions only |
+
+Order prices still come from the page's live Deribit quote, which is fine for paper trading. Real trading must price and fill on the server through the broker.
 
 ## Next steps
 
 - Connect a licensed broker or exchange API for real order routing (see partner options: Interactive Brokers introducing-broker program, Alpaca Broker API, a German *Haftungsdach* provider).
-- Accounts and persistent positions; move the appropriateness record server-side (MiFID II record-keeping, 5 years).
+- Retention: keep assessment and order records for at least 5 years after an account closes (MiFID II record-keeping); today `on delete cascade` removes them with the user.
 
 ## Appropriateness check (MiFID II Art. 25(3))
 
@@ -51,4 +78,4 @@ Before the first order the client takes a knowledge check built along ESMA's app
 | 2 · Spreads | Covered spreads, iron condors | Level 1 + spread question |
 | 3 · Uncovered selling | Naked short calls/puts | Level 2 + both short-option questions + 10+ options/futures trades in 3 years (1–9 if working in finance) |
 
-A failed check shows a clear warning; the client may proceed with buying options only after accepting it. Retakes are limited to 3 per 24 hours, checks expire after 12 months, and every order is logged against the assessment record. In this demo the record lives in the browser.
+A failed check shows a clear warning; the client may proceed with buying options only after accepting it. Retakes are limited to 3 per 24 hours, checks expire after 12 months, and every order is logged against the assessment record. Signed-in users' records live in the database; guests' stay in the browser.
