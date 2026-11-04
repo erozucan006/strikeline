@@ -13,7 +13,7 @@
   if (/access_token=|error_description=/.test(location.hash)) location.replace("/app" + location.hash);
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@400;500;600&family=Geologica:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap">
 <style>
 /* Strikeline product page. One deliberate dark world (no light variant): midnight ink, one periwinkle
    accent, semantic green/red only where money moves. Layout: hero with live "strike lines" canvas,
@@ -23,9 +23,9 @@
   --ink:#e6ebf4; --ink-2:#b4bfd2; --muted:#8290a8;
   --accent:#8a9bff; --accent-2:#b8c2ff; --accent-soft:#19214a; --on-accent:#070b14;
   --gain:#38d39f; --loss:#ff7070; --amber:#f2b252;
-  --f-display:"Geologica", "Hanken Grotesk", system-ui, sans-serif;
+  --f-display:"Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
   --f-ui:"Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --f-num:"Azeret Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --f-num:"Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;  /* equal-width digits by default */
   --w:1180px;
   color-scheme:dark;
   padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
@@ -39,8 +39,8 @@ img,svg,canvas{max-width:100%}
 .num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
 .wrap{max-width:var(--w);margin:0 auto;padding-left:max(20px, env(safe-area-inset-left, 0px));padding-right:max(20px, env(safe-area-inset-right, 0px))}
 :focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
-h1,h2,h3{font-family:var(--f-display);font-weight:600;text-wrap:balance;margin:0}
-h2{font-size:clamp(32px,4.2vw,52px);line-height:1.04;letter-spacing:-.035em}
+h1,h2,h3{font-family:var(--f-display);font-weight:700;text-wrap:balance;margin:0}
+h2{font-size:clamp(32px,4.2vw,52px);line-height:1.06;letter-spacing:-.03em}
 .hl{color:var(--accent)}
 .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
 .eyebrow::before{content:"";width:18px;height:1px;background:var(--accent)}
@@ -54,7 +54,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .nav nav{display:flex;gap:22px;font-size:14px;color:var(--ink-2)}
 .nav nav a{text-decoration:none}
 .nav nav a:hover{color:var(--ink)}
-.live{margin-left:auto;display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid var(--line-2);border-radius:999px;font-family:var(--f-num);font-size:12px;color:var(--ink-2);white-space:nowrap}
+.live{margin-left:auto;display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid var(--line-2);border-radius:999px;font-family:var(--f-num);font-size:13px;font-weight:600;color:var(--ink-2);white-space:nowrap}
 .live i{width:7px;height:7px;border-radius:50%;background:var(--muted)}
 .live.on i{background:var(--gain);box-shadow:0 0 10px var(--gain);animation:beat 2s ease-in-out infinite}
 @keyframes beat{50%{opacity:.35}}
@@ -74,7 +74,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .hero-in{max-width:640px}
 .pill{display:inline-flex;align-items:center;gap:8px;padding:5px 12px;border:1px solid var(--line-2);border-radius:999px;font-size:12.5px;color:var(--ink-2);background:rgba(13,20,34,.6)}
 .pill i{width:6px;height:6px;border-radius:50%;background:var(--accent)}
-.hero h1{margin-top:22px;font-size:clamp(46px,6.6vw,90px);line-height:.96;letter-spacing:-.045em}
+.hero h1{margin-top:22px;font-size:clamp(46px,6.4vw,86px);line-height:1;letter-spacing:-.035em;font-weight:800}
 .lede{margin:24px 0 0;max-width:52ch;font-size:18px;color:var(--ink-2)}
 .actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:32px}
 .card{justify-self:end;width:min(340px,100%);padding:18px 20px;border:1px solid var(--line-2);border-radius:18px;background:rgba(13,20,34,.82);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 30px 70px -30px rgba(0,0,0,.9)}
@@ -84,7 +84,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .card .sub{font-size:12.5px;color:var(--muted)}
 .card dl{display:grid;grid-template-columns:1fr auto;gap:6px 12px;margin:14px 0 0;padding-top:12px;border-top:1px solid var(--line);font-size:13.5px}
 .card dt{color:var(--ink-2)}
-.card dd{margin:0;font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.card dd{margin:0;font-family:var(--f-num);font-weight:600;font-variant-numeric:tabular-nums}
 .card p{margin:12px 0 0;font-size:13px;color:var(--ink-2);line-height:1.5}
 
 /* live numbers strip */
@@ -109,18 +109,18 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .mini .h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:13px;color:var(--muted)}
 .mini .h b{color:var(--ink);font-family:var(--f-display);font-weight:600;font-size:15px}
 .sentence{margin:14px 0 0;padding:14px 16px;border-radius:12px;background:var(--accent-soft);font-size:15.5px;line-height:1.55}
-.sentence b{font-family:var(--f-num);font-weight:500;font-size:14px}
+.sentence b{font-weight:700}
 .sentence .lead{display:block;font-weight:600;margin-bottom:6px}
 .payoff{display:block;width:100%;height:120px;margin-top:12px}
-.payoff text{font-family:var(--f-num);font-size:10px;fill:var(--muted)}
+.payoff text{font-family:var(--f-ui);font-size:10.5px;fill:var(--muted)}
 
 /* size demo */
 .sizer{display:flex;align-items:stretch;border:1px solid var(--line-2);border-radius:12px;overflow:hidden;margin-top:14px}
 .sizer span{display:flex;align-items:center;justify-content:center;width:48px;background:var(--panel-2);font-size:20px;color:var(--ink-2)}
-.sizer output{flex:1;padding:10px 14px;text-align:right;font-family:var(--f-num);font-size:24px;font-weight:600;background:var(--bg)}
+.sizer output{flex:1;padding:10px 14px;text-align:right;font-family:var(--f-num);font-size:24px;font-weight:700;background:var(--bg);font-variant-numeric:tabular-nums}
 .sizer em{display:flex;align-items:center;padding:0 14px 0 4px;font-style:normal;color:var(--muted);background:var(--bg);font-size:14px}
 .costrow{display:flex;justify-content:space-between;margin-top:14px;font-size:14px;color:var(--ink-2)}
-.costrow b{font-family:var(--f-num);font-weight:500;color:var(--ink);font-size:16px}
+.costrow b{font-weight:700;color:var(--ink);font-size:16px;font-variant-numeric:tabular-nums}
 .compare{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
 .compare div{border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:13px;color:var(--muted)}
 .compare b{display:block;font-family:var(--f-display);font-weight:600;font-size:20px;color:var(--ink);letter-spacing:-.02em}
@@ -131,7 +131,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .head p{margin:18px 0 0;font-size:17px;color:var(--ink-2)}
 .levels{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:48px}
 .lv{position:relative;display:flex;flex-direction:column;gap:12px;padding:24px;border:1px solid var(--line);border-radius:18px;background:var(--panel)}
-.lv .n{font-family:var(--f-num);font-size:12px;color:var(--accent);letter-spacing:.08em}
+.lv .n{font-size:12px;font-weight:700;color:var(--accent);letter-spacing:.12em}
 .lv h3{font-size:24px;letter-spacing:-.025em}
 .lv p{margin:0;font-size:14.5px;color:var(--ink-2)}
 .lv svg{width:100%;height:70px}
@@ -155,22 +155,23 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .mock .fx{display:flex;flex-wrap:wrap;gap:6px}
 .mock .fx span{border:1px solid var(--line-2);border-radius:6px;padding:4px 8px}
 .mock .fx span.go{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
-.mock code{font-family:var(--f-num);font-size:12px;color:var(--ink-2);display:flex;justify-content:space-between;gap:8px}
-.mock code b{font-weight:500;color:var(--gain)}
+.rules{list-style:none;margin:0;padding:12px 14px;border:1px solid var(--line-2);border-radius:12px;background:var(--bg-2);display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--ink-2)}
+.rules li{padding-left:16px;position:relative}
+.rules li::before{content:"";position:absolute;left:0;top:.6em;width:6px;height:6px;border-radius:50%;background:var(--accent)}
 
 /* scenario demo */
-.grid{width:100%;border-collapse:collapse;font-family:var(--f-num);font-size:13px;font-variant-numeric:tabular-nums;margin-top:12px}
+.grid{width:100%;border-collapse:collapse;font-family:var(--f-num);font-size:13.5px;font-weight:500;font-variant-numeric:tabular-nums;margin-top:12px}
 .grid th{font-family:var(--f-ui);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;text-align:right;padding:6px 8px}
 .grid th:first-child,.grid td:first-child{text-align:left}
 .grid td{padding:7px 8px;text-align:right;border-top:1px solid var(--line)}
 .grid td.l{color:var(--muted)}
 .greeks{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;margin-top:14px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--line)}
 .greeks div{background:var(--bg-2);padding:8px 10px;font-size:11.5px;color:var(--muted)}
-.greeks b{display:block;font-family:var(--f-num);font-weight:500;font-size:13.5px;color:var(--ink)}
+.greeks b{display:block;font-weight:600;font-size:14px;color:var(--ink);font-variant-numeric:tabular-nums}
 
 /* close */
 .close{padding:120px 0;text-align:center;border-top:1px solid var(--line);background:radial-gradient(50% 80% at 50% 100%, rgba(138,155,255,.12), transparent 70%), var(--bg)}
-.close h2{font-size:clamp(40px,5.5vw,72px);letter-spacing:-.045em}
+.close h2{font-size:clamp(40px,5.5vw,72px);letter-spacing:-.035em;font-weight:800}
 .close p{margin:18px auto 30px;max-width:52ch;color:var(--ink-2);font-size:17px}
 footer{border-top:1px solid var(--line);padding:30px 0 40px;font-size:13px;color:var(--muted)}
 footer .wrap{display:flex;flex-wrap:wrap;gap:12px 28px;align-items:flex-start;justify-content:space-between}
@@ -241,8 +242,8 @@ footer nav{display:flex;gap:18px}
   <div class="wrap">
     <div class="s"><b id="stBtc">—</b><span>BTC index, live</span></div>
     <div class="s"><b id="stEth">—</b><span>ETH index, live</span></div>
-    <div class="s"><b id="stCount">—</b><span>option prices on screen</span></div>
-    <div class="s"><b>15 s</b><span id="stTime">refresh from Deribit</span></div>
+    <div class="s"><b id="stBtcIv">—</b><span id="stBtcIvL">BTC implied volatility</span></div>
+    <div class="s"><b id="stEthIv">—</b><span id="stEthIvL">ETH implied volatility</span></div>
   </div>
 </section>
 
@@ -328,17 +329,17 @@ footer nav{display:flex;gap:18px}
       <article class="rail">
         <h3>Large orders need a second click</h3>
         <p>When an order puts a quarter of your cash at risk, or its loss has no limit, the first click shows the risk. Only the second one places it.</p>
-        <div class="mock" aria-hidden="true"><div class="warn"><b>Large order.</b> This order puts $2,480 at risk, 25% of your demo cash.</div><div class="cta">Confirm order · $2,480 at risk</div></div>
+        <div class="mock" aria-hidden="true"><div class="warn" id="mkBig"><b>Large order.</b> This order puts a quarter of your demo cash at risk.</div><div class="cta" id="mkBigBtn">Confirm order</div></div>
       </article>
       <article class="rail">
         <h3>Blocked orders come with fixes</h3>
         <p>If an order is above your level, the ticket names the leg that is the problem and fixes it in one click.</p>
-        <div class="mock" aria-hidden="true"><div class="fix"><b>Sell put 77,000</b> has no protection.</div><div class="fx"><span class="go">Add protection: buy put 75,000</span><span>Buy it instead</span><span>Remove it</span></div></div>
+        <div class="mock" aria-hidden="true"><div class="fix" id="mkFix"><b>Sell put</b> has no protection.</div><div class="fx"><span class="go" id="mkFixGo">Add protection: buy a lower put</span><span>Buy it instead</span><span>Remove it</span></div></div>
       </article>
       <article class="rail">
         <h3>Checked on the server, not just the page</h3>
         <p>Your level, cash and every order are checked in the database. Changing the page in the browser cannot unlock anything.</p>
-        <div class="mock" aria-hidden="true"><code>level ≥ required <b>checked</b></code><code>cash ≥ capital <b>checked</b></code><code>3 attempts / 24 h <b>checked</b></code><code>order logged to record <b>checked</b></code></div>
+        <ul class="rules"><li>Your level against every leg of the order</li><li>Your cash against the capital the order needs</li><li>Three knowledge-check attempts per 24 hours</li><li>Each order logged against your check</li></ul>
       </article>
     </div>
   </div>
@@ -416,14 +417,22 @@ function fill(live){
   $("livePx").textContent=`BTC $${k(b.index)}`;$("livePill").classList.toggle("on",live);
   if(!live)$("livePill").title="Saved Deribit snapshot";
   $("stBtc").textContent="$"+k(b.index);$("stEth").textContent="$"+k(e.index);
-  const n=["BTC","ETH"].reduce((a,c)=>a+D[c].exps.reduce((s,x)=>s+x.s.length*2,0),0);
-  $("stCount").textContent=n.toLocaleString("en-US");
-  $("stTime").textContent=live?"refresh from Deribit · "+new Date(D.ts).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",timeZone:"Europe/Berlin"})+" CET":"saved Deribit snapshot";
+  // at-the-money implied volatility, about a month out: the market's own estimate of how much each coin will move
+  for(const c of ["BTC","ETH"]){const e=pickExp(c,30),r=row(e,atm(e));
+    $("st"+(c==="BTC"?"Btc":"Eth")+"Iv").textContent=((r[4]+r[9])/2).toFixed(1)+"%";
+    $("st"+(c==="BTC"?"Btc":"Eth")+"IvL").textContent=`${c} implied volatility, ${day(e.t)}`;}
 
   // hero card: the first call above the forward, about three weeks out, at the smallest size
   const x=pickExp("BTC",21),K=strikeAbove(x,x.F),r=row(x,K),ask=r[2]??r[3],cost=ask*0.01;
   $("exName").textContent=`BTC ${k(K)} call`;$("exExp").textContent="expires "+day(x.t);
   $("exCost").textContent=usd(cost,2);$("exAsk").textContent=usd(ask,0);$("exLoss").textContent=usd(cost,2);$("exBe").textContent="$"+k(K+ask);
+
+  // guard rails, from the same live quote: a size that puts about a quarter of $10,000 at risk
+  const big=Math.max(0.01,Math.round(2600/ask/0.01)*0.01),risk=big*ask*1.004;
+  $("mkBig").innerHTML=`<b>Large order.</b> ${big.toFixed(2)} BTC of the ${k(K)} call puts ${usd(risk,0)} at risk, ${Math.round(risk/100)}% of your demo cash.`;
+  $("mkBigBtn").textContent=`Confirm order · ${usd(risk,0)} at risk`;
+  const below=x.s.map(r=>r[0]).filter(v=>v<x.F),Ks=below.at(-1),Kp=below.at(-3)??below[0];
+  $("mkFix").innerHTML=`<b>Sell put ${k(Ks)}</b> has no protection.`;$("mkFixGo").textContent=`Add protection: buy put ${k(Kp)}`;
 
   // plain words: bull call spread at the same expiry
   const K1=K,K2=strikeAbove(x,K1+1,1),r1=row(x,K1),r2=row(x,K2),q=0.05;
@@ -503,7 +512,7 @@ function draw(now){
   }
   // live index
   const xi=X(d.idx);ctx.setLineDash([3,4]);ctx.strokeStyle="rgba(56,211,159,.75)";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(xi,yt-10);ctx.lineTo(xi,yb);ctx.stroke();ctx.setLineDash([]);
-  ctx.font="500 11px 'Azeret Mono', monospace";ctx.fillStyle="rgba(56,211,159,.95)";ctx.fillText(`BTC ${k(d.idx)}`,xi+8,yt);
+  ctx.font="600 12px 'Hanken Grotesk', system-ui, sans-serif";ctx.fillStyle="rgba(56,211,159,.95)";ctx.fillText(`BTC ${k(d.idx)}`,xi+8,yt);
   ctx.fillStyle="rgba(130,144,168,.85)";ctx.fillText(ph>0.97?"at expiry":`${Math.max(0,Math.round(tau*365))} days to expiry`,xi+8,yt+16);
 }
 function loop(now){draw(now);if(visible&&!reduce)raf=requestAnimationFrame(loop);}
