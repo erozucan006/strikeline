@@ -17,7 +17,8 @@ export function realDeps(env = process.env) {
   const anon = env.SUPABASE_ANON_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY || env.SUPABASE_PUBLISHABLE_KEY || env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   const service = env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SECRET_KEY;
   if (!url || !anon || !service) return null;
-  const svc = { apikey: service, Authorization: `Bearer ${service}`, "Content-Type": "application/json" };
+  // Legacy service_role keys are JWTs and go in both headers; new sb_secret_ keys only in apikey.
+  const svc = { apikey: service, "Content-Type": "application/json", ...(service.startsWith("eyJ") ? { Authorization: `Bearer ${service}` } : {}) };
   return {
     // Supabase checks the session token and returns the user it belongs to.
     async getUser(token) {
