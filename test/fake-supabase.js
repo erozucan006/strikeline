@@ -14,7 +14,7 @@
     };
     window.__fakeLogin = function () {
       var r = window.__lastOtp; if (!r) throw new Error("no link sent");
-      var s = { user: { id: r.id, email: r.email } };
+      var s = { user: { id: r.id, email: r.email }, access_token: r.id };
       localStorage.setItem(KEY, JSON.stringify(s)); emit("SIGNED_IN", s);
     };
     return {

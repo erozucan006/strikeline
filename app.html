@@ -637,6 +637,10 @@ function renderRisk(A){
   const box=$("risk"),btn=$("submit"),lg=S.legs;btn.classList.remove("warnbtn");
   const canTrade=lg.length&&btn.textContent==="Place demo order"&&!btn.disabled;
   if(!canTrade){box.hidden=true;return;}
+  if(pricesStale()){
+    box.className="risk stop";box.hidden=false;btn.disabled=true;
+    box.innerHTML=`<b>Prices out of date</b><span>The last live update was ${Math.round((Date.now()-D.ts)/1000)} seconds ago. Orders are paused until prices refresh.</span>`;return;
+  }
   const share=A.req/Math.max(S.cash,1e-9),unlimited=!isFinite(A.mn),mx=maxSize(A);
   if(A.req>S.cash){
     box.className="risk stop";box.hidden=false;btn.disabled=true;
@@ -678,10 +682,16 @@ async function submit(){
   const name=S.preset===null?"Custom":PRESETS[S.preset][0];
   const legs=S.legs.map(l=>({id:l.id,u:l.u,type:l.type,K:l.K,e:l.e,t:l.t,side:l.side,qty:l.qty,entry:+legEntry(l).toFixed(4)}));
   if(ACC.user){
-    // The server re-checks level, fee bounds and cash, then books the order against the assessment.
-    const r=await serverCall("place_order",{p_name:name,p_underlying:S.u,p_legs:legs,p_fee:+A.fe.toFixed(2),p_required:+A.req.toFixed(2)});
+    // The server prices every leg from a fresh Deribit ticker; the prices shown here are only the worst
+    // fill accepted. The same key is reused until the order succeeds, so a retry never books it twice.
+    const sig=legsSig();if(!S.idem||S.idem.sig!==sig)S.idem={sig,key:newKey()};
+    const r=await apiPost("api/order",{underlying:S.u,name,idempotencyKey:S.idem.key,
+      legs:S.legs.map(l=>({type:l.type,K:l.K,e:l.e,side:l.side,qty:l.qty,limit:+legEntry(l).toFixed(4)}))});
     if(!r)return;
-    await loadServerState();  // cash, positions and the order count come back from the server, rounded as booked
+    S.idem=null;await loadServerState();  // cash, positions and the order count come back from the server, rounded as booked
+    msg.className="msg ok";msg.textContent=r.replayed?"This order was already placed. Nothing was booked twice.":
+      `Filled at the market: ${legs.length} leg${legs.length>1?"s":""}, ${r.net>=0?"paid":"received"} ${usd(Math.abs(r.net),2)}, fees ${usd(r.fee,2)}. Saved to your account.`;
+    renderAll();return;
   }else{
     S.positions.unshift({id:S.nid++,name,legs,fee:A.fe,u:S.u});
     // Record every order placed under this assessment, and whether it followed a warning.
@@ -704,8 +714,27 @@ const SERVER_ERRORS={
   position_not_open:"This position is already closed. Reload the page to see the latest state.",
   not_signed_in:"Your session ended. Sign in again to continue.",
   invalid_legs:"One of the options in this order has expired or is not valid. Refresh the strategy and try again.",
-  invalid_fraction:"That part of the position is below the minimum size. Close the whole position instead."
+  invalid_fraction:"That part of the position is below the minimum size. Close the whole position instead.",
+  price_moved:"The market moved since these prices were shown. Check the new prices and place the order again.",
+  stale_quote:"Live prices for one of these options are out of date. Wait a few seconds and try again.",
+  no_quote:"One of these options has no buyer or seller right now. Pick another strike or expiry.",
+  rate_limited:"Too many orders in the last minute. Wait a moment and try again.",
+  server_not_configured:"Orders are paused while the server is being set up. Try again later.",
+  invalid_value:"The closing price looked wrong, so nothing was booked. Reload the page and try again."
 };
+function newKey(){const a=new Uint8Array(16);crypto.getRandomValues(a);return [...a].map(b=>b.toString(16).padStart(2,"0")).join("");}
+// Orders and closes go through the server, which prices them; the session token proves who is asking.
+async function apiPost(path,body){
+  ACC.busy=true;$("submit").disabled=true;const msg=$("msg");
+  try{const {data}=await ACC.sb.auth.getSession();const token=data&&data.session?data.session.access_token:"";
+    const r=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},body:JSON.stringify(body)});
+    let j=null;try{j=await r.json();}catch(e){}
+    if(!r.ok){msg.className="msg err";msg.textContent=serverMessage({message:j&&j.error||String(r.status)});
+      if(j&&j.error==="price_moved")poll();return null;}
+    return j;}
+  catch(e){msg.className="msg err";msg.textContent="Could not reach the server. Check your connection and try again.";return null;}
+  finally{ACC.busy=false;renderTicket(analyze(S.legs,legEntry));}
+}
 function serverMessage(err){const m=String(err&&err.message||"");for(const k in SERVER_ERRORS)if(m.includes(k))return SERVER_ERRORS[k];
   return "The server did not accept this. Check your connection and try again.";}
 async function serverCall(fn,args){
@@ -1070,8 +1099,11 @@ async function closePos(id,f=1){
   let val=0;for(const l of p.legs)val+=l.side*l.qty*legQuote(l).mid;
   const part=+(val*f).toFixed(2);S.adjust=null;
   if(ACC.user){
-    const r=f<1?await serverCall("reduce_position",{p_id:p.id,p_fraction:f,p_value:part}):await serverCall("close_position",{p_id:p.id,p_value:part});
-    if(r)await loadServerState();return;
+    // The server values the close at the live bid (longs) and ask (shorts), not at the mid shown here.
+    const r=await apiPost("api/close",{positionId:p.id,fraction:f,idempotencyKey:newKey()});
+    if(r){await loadServerState();const msg=$("msg");msg.className="msg ok";
+      msg.textContent=`${f<1?"Reduced":"Closed"} at the market for ${r.value>=0?"":"−"}${usd(Math.abs(r.value),2)}.`;}
+    return;
   }
   if(f<1){for(const l of p.legs)l.qty=+(l.qty*(1-f)).toFixed(4);p.fee*=1-f;}
   else{const j=S.positions.indexOf(p);if(j>=0)S.positions.splice(j,1);}
@@ -1156,6 +1188,14 @@ function apply(data){
   if(!expOf(S.u,S.exp))S.exp=D[S.u].exps[Math.min(3,D[S.u].exps.length-1)].code;
 }
 let live=false,fails=0;
+const STALE_MS=60000;
+// Only live data can go stale; the bundled snapshot is labelled as a snapshot instead.
+function pricesStale(){return live&&D&&Date.now()-D.ts>STALE_MS;}
+// Client errors go to the server log so problems show up without anyone reporting them.
+let logged=0;
+function report(m,src,line){if(logged++>=5)return;try{navigator.sendBeacon("api/log",JSON.stringify({msg:String(m).slice(0,300),src:src||"",line:line||0,page:location.pathname}));}catch(e){}}
+window.addEventListener("error",e=>report(e.message,e.filename,e.lineno));
+window.addEventListener("unhandledrejection",e=>report("unhandled: "+(e.reason&&e.reason.stack||e.reason)));
 async function poll(){
   if(document.hidden)return;
   try{const d=await getJson("api/chain");fails=0;apply(d);setStatus("live","Live · Deribit · "+clock(d.ts));
@@ -1172,7 +1212,8 @@ async function boot(){
   if(live){
     setStatus("live","Live · Deribit · "+clock(data.ts));
     $("notice").textContent="Bids, asks, mark prices and implied volatilities are live from Deribit's public market data, refreshed every 15 seconds and shown in USD. No real orders are sent.";
-    setInterval(poll,POLL_MS);document.addEventListener("visibilitychange",()=>{if(!document.hidden)poll();});
+    setInterval(poll,POLL_MS);
+    setInterval(()=>{if(pricesStale()||S.staleShown){S.staleShown=pricesStale();renderTicket(analyze(S.legs,legEntry));}},5000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)poll();});
   }else{
     const when=new Date(data.ts).toLocaleString("en-GB",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",timeZone:"Europe/Berlin"});
     setStatus("snapshot","Deribit snapshot · "+when+" CET");

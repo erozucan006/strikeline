@@ -3,6 +3,23 @@
   "regions": ["fra1"],
   "functions": {
     "api/chain.js": { "maxDuration": 15 },
-    "api/config.js": { "maxDuration": 5 }
-  }
+    "api/config.js": { "maxDuration": 5 },
+    "api/order.js": { "maxDuration": 15 },
+    "api/close.js": { "maxDuration": 15 },
+    "api/health.js": { "maxDuration": 10 },
+    "api/log.js": { "maxDuration": 5 }
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'" },
+        { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(), payment=()" }
+      ]
+    }
+  ]
 }
