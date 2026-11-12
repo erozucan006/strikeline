@@ -130,3 +130,39 @@ test("the chain clients see is the exchange chain widened by the markup; marks a
   assert.deepEqual(row, [80000, 1824, 2080, 1950, 40, 1, 1728, 1976, 1850, 40, 1]);
   assert.equal(snap.BTC.exps[0].s[0][1], 1900, "input not modified");
 });
+
+test("each new fill is written to the books with exchange price, client price and markup; replays are not", async () => {
+  const d = deps(book);
+  await placeOrder(d, { token: "good-token", body: body([L("C", 79000, 1, 0.05, A(2560)), L("C", 81000, -1, 0.05, B(1600))]), now: NOW });
+  const rev = d.calls.find((c) => c.fn === "record_revenue").args.p_rows;
+  assert.equal(rev.length, 2);
+  assert.equal(rev[0].exchange_price, 2560); assert.equal(rev[1].exchange_price, 1600);
+  assert.ok(Math.abs(rev[0].markup - (A(2560) - 2560) * 0.05) < 1e-3 && Math.abs(rev[1].markup - (1600 - B(1600)) * 0.05) < 1e-3);
+  assert.deepEqual([rev[0].client_side, rev[1].client_side, rev[0].instrument], [1, -1, "BTC-27NOV26-79000-C"]);
+  const replay = { ...deps(book), rpc: async (fn, a) => { replay.calls.push(fn); return { replayed: true }; }, calls: [] };
+  await placeOrder(replay, { token: "good-token", body: body([L("C", 79000, 1, 0.05, A(2560))]), now: NOW });
+  assert.deepEqual(replay.calls, ["place_order_v2"], "a replayed order is not booked as revenue again");
+  const broken = { ...deps(book), rpc: async (fn) => { if (fn === "record_revenue") throw new Error("down"); return { replayed: false, position: { id: 1 } }; } };
+  const orig = console.error; console.error = () => {};
+  try { const r = await placeOrder(broken, { token: "good-token", body: body([L("C", 79000, 1, 0.05, A(2560))]), now: NOW }); assert.equal(r.replayed, false, "the client's order still goes through"); }
+  finally { console.error = orig; }
+});
+
+test("closing books the markup with the client on the other side", async () => {
+  const position = { id: 7, underlying: "BTC", legs: [{ ...L("C", 79000, 1, 0.08, 0), t: T }] };
+  const d = deps(book, { position });
+  await closePosition(d, { token: "good-token", body: { positionId: 7, fraction: 0.5, idempotencyKey: "e".repeat(20) }, now: NOW });
+  const [r] = d.calls.find((c) => c.fn === "record_revenue").args.p_rows;
+  assert.deepEqual([r.kind, r.client_side, r.qty, r.exchange_price], ["reduce", -1, 0.04, 2500]);
+});
+
+test("admin summary: only listed e-mails, and hedges rounded to Deribit lots", async () => {
+  const { adminSummary } = await import("../api/_trade.js");
+  const base = { getUser: async (t) => (t === "adm" ? { id: "a", email: "Boss@Example.com" } : t === "usr" ? { id: "u", email: "x@y.z" } : null),
+    rpc: async () => ({ totals: {}, exposure: [{ underlying: "BTC", e: E, k: "80000", type: "C", client_net: "0.27" }, { underlying: "ETH", e: E, k: "3000", type: "P", client_net: "-0.4" }] }) };
+  await assert.rejects(adminSummary(base, { token: "adm", env: {} }), { code: "admin_not_configured" });
+  await assert.rejects(adminSummary(base, { token: "usr", env: { ADMIN_EMAILS: "boss@example.com" } }), { code: "not_admin" });
+  await assert.rejects(adminSummary(base, { token: "", env: { ADMIN_EMAILS: "boss@example.com" } }), { code: "not_signed_in" });
+  const s = await adminSummary(base, { token: "adm", env: { ADMIN_EMAILS: "other@x.y, boss@example.com" } });
+  assert.deepEqual(s.exposure.map((x) => [x.instrument, x.hedge, x.residual]), [["BTC-27NOV26-80000-C", -0.2, -0.07], ["ETH-27NOV26-3000-P", 0, 0.4]]);
+});

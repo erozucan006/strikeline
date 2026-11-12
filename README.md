@@ -22,6 +22,7 @@ browser ──every 15 s──▶ /api/chain (Vercel function, Frankfurt) ──
 | `api/_snapshot.js` | Pure transform from Deribit's raw data to the chain format (tested) |
 | `api/config.js` | Hands the page the public Supabase URL and anon key (never the service key) |
 | `api/order.js`, `api/close.js` | Price, check and book orders and closes on the server (`api/_trade.js`, `api/_deps.js`) |
+| `admin.html`, `api/admin.js` | Internal page at `/admin`: revenue, latest fills, open exposure and hedge sizes (ADMIN_EMAILS only) |
 | `api/health.js`, `api/log.js` | Uptime check (Deribit reachable, accounts configured) and page error reports |
 | `supabase/migrations/` | Database: tables, row level security and the server functions for accounts |
 | `snapshot.json` | Bundled fallback the page uses if the function is unreachable |
@@ -47,7 +48,7 @@ Import the repository on [vercel.com/new](https://vercel.com/new). No build sett
 Without Supabase the app runs in guest mode and keeps everything in the browser. To turn on accounts:
 
 1. In the Vercel project: **Storage → Create Database → Supabase**, connected to this project. This adds `SUPABASE_URL` and `SUPABASE_ANON_KEY`.
-2. In Supabase: **SQL Editor** → run each file in `supabase/migrations/` in order (`001_…`, `002_…`, `003_…`).
+2. In Supabase: **SQL Editor** → run each file in `supabase/migrations/` in order (`001_…` to `004_…`).
 3. In Vercel: check that `SUPABASE_SERVICE_ROLE_KEY` is set (the Supabase integration adds it). Orders need it; `/api/health` shows `"accounts": true` when it is there.
 4. In Supabase: **Authentication → URL Configuration** → set **Site URL** to the deployed address and add it under **Redirect URLs** (a sign-in link that lands on `/` is forwarded to `/app`).
 5. Redeploy on Vercel so the functions pick up the new variables.
@@ -79,6 +80,10 @@ The old browser-callable `place_order`, `close_position` and `reduce_position` a
 ### Pricing
 
 Clients see Deribit's quote widened by a markup and pay no separate commission (`api/_spread.js`). Per 1 coin of option the markup is `clamp(SPREAD_PCT × price, SPREAD_FLOOR × index, SPREAD_CAP × index)`; buys fill at ask + markup, sells at bid − markup. The chain (`/api/chain`), fills (`/api/order`) and closes (`/api/close`) all use the same function. Set the three values as Vercel environment variables; the numbers in the code are only fallbacks for the preview and tests. The ticket shows the client "trading costs (in price)": the distance between their price and the market mid.
+
+### Platform books and admin page
+
+Every fill writes one row per leg to `revenue` (migration 004): exchange price, client price, markup earned and the estimated Deribit fee. The table has row level security with no policy, so clients cannot read it; a replayed order is never counted twice. `/admin` shows earnings today, this week and in total, a 30-day chart, the latest fills, and the open exposure: what clients hold across all accounts, the opposite position the platform carries, how much of it fits whole Deribit lots (0.1 BTC, 1 ETH) and what remains. Access: sign in with an address listed in the `ADMIN_EMAILS` environment variable (comma-separated).
 
 ### Records
 

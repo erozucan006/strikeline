@@ -188,3 +188,19 @@ test("signed-out callers are refused", { skip }, async () => {
   await fails(db.query("select my_state()"), "permission denied");
   await db.exec("reset role;");
 });
+
+test("revenue books: service-only, idempotent, append-only; admin summary shows markup and client exposure", { skip }, async () => {
+  const row = (k, n, o = {}) => ({ user_id: A, kind: "open", position_id: null, idempotency_key: k, leg_no: n, underlying: "BTC", instrument: "BTC-27NOV26-80000-C",
+    client_side: 1, qty: 0.05, index_price: 80000, exchange_price: 2000, client_price: 2040, markup: 2, exchange_fee: 1.2, ...o });
+  const k1 = key();
+  assert.equal((await svc("select record_revenue($1) as n", [[row(k1, 0), row(k1, 1, { markup: 1.5 })]]))[0].n, 2);
+  assert.equal((await svc("select record_revenue($1) as n", [[row(k1, 0)]]))[0].n, 0, "same key and leg is not counted twice");
+  await fails(as(A, "select * from revenue"), "permission denied");
+  await fails(as(A, "select record_revenue($1)", [[row(key(), 0)]]), "permission denied");
+  await fails(as(A, "select admin_summary()"), "permission denied");
+  await fails(db.exec("update revenue set markup = 0"), "records_are_append_only");
+  const s = (await svc("select admin_summary() as s"))[0].s;
+  assert.ok(Number(s.totals.all) >= 3.5 && Number(s.totals.today) >= 3.5 && s.totals.fills >= 2, JSON.stringify(s.totals));
+  assert.ok(s.recent.length >= 2 && s.by_instrument.some((i) => i.instrument === "BTC-27NOV26-80000-C"));
+  assert.ok(Array.isArray(s.exposure) && s.exposure.every((e) => Number(e.client_net) !== 0), "open client positions summed by option");
+});

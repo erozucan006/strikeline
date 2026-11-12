@@ -24,7 +24,7 @@ export function realDeps(env = process.env) {
     async getUser(token) {
       if (!token) return null;
       const r = await json(`${url}/auth/v1/user`, { headers: { apikey: anon, Authorization: `Bearer ${token}` } });
-      return r.ok && r.body && r.body.id ? { id: r.body.id } : null;
+      return r.ok && r.body && r.body.id ? { id: r.body.id, email: r.body.email || null } : null;
     },
     async getTicker(name) {
       const r = await json(`${DERIBIT}/ticker?instrument_name=${encodeURIComponent(name)}`);

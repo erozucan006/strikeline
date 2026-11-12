@@ -85,7 +85,7 @@ export function fillLegs(legs, quotes, index, c = spreadConfig()) {
     const tol = Math.max(0.01 * l.limit, 0.0002 * index);
     if (l.side > 0 ? px > l.limit + tol : px < l.limit - tol)
       throw new TradeError("price_moved", 409, { leg: i, limit: l.limit, price: Math.round(px * 100) / 100 });
-    return { ...l, entry: Math.round(px * 1e4) / 1e4 };
+    return { ...l, entry: Math.round(px * 1e4) / 1e4, xp: l.side > 0 ? q.ask : q.bid };
   });
 }
 
@@ -126,9 +126,11 @@ export async function placeOrder(deps, { token, body, now = Date.now() }) {
   const { req, net } = requiredCapital(legs, index, fee);
   const booked = await deps.rpc("place_order_v2", {
     p_user: user.id, p_name: order.name, p_underlying: order.u,
-    p_legs: legs.map(({ limit, ...l }) => l), p_fee: fee, p_required: Math.round(req * 100) / 100,
+    p_legs: legs.map(({ limit, xp, ...l }) => l), p_fee: fee, p_required: Math.round(req * 100) / 100,
     p_idem: order.key, p_quote_ts: new Date(oldest).toISOString(),
   });
+  if (booked && !booked.replayed)
+    await recordRevenue(deps, legs.map((l, i) => revenueRow({ user, kind: "open", positionId: booked.position?.id, key: order.key, i, u: order.u, leg: l, clientSide: l.side, qty: l.qty, index, xp: l.xp, cp: l.entry })));
   return { ...booked, fills: legs.map((l) => ({ type: l.type, K: l.K, e: l.e, side: l.side, qty: l.qty, price: l.entry })), net: Math.round(net * 100) / 100, fee, required: Math.round(req * 100) / 100 };
 }
 
@@ -150,30 +152,70 @@ export async function closePosition(deps, { token, body, now = Date.now() }) {
   if (q) { index = q.index; oldest = q.oldest; }
   if (done.length && !index) index = await deps.getIndex(u);
   let value = 0;
-  const c = spreadConfig();
+  const c = spreadConfig(), rows = [];
   live.forEach((l, i) => {
-    const px = l.side > 0 ? clientBid(q.quotes[i].bid, index, c) : clientAsk(q.quotes[i].ask, index, c);
+    const xp = l.side > 0 ? q.quotes[i].bid : q.quotes[i].ask;
+    const px = l.side > 0 ? clientBid(xp, index, c) : clientAsk(xp, index, c);
     if (px == null) throw new TradeError("no_quote", 409, `${l.type} ${l.K}`);
     value += l.side * l.qty * f * px;
+    rows.push({ l, i, xp, px });
   });
   for (const l of done) value += l.side * l.qty * f * Math.max(0, l.type === "C" ? index - l.K : l.K - index);
   value = Math.round(value * 100) / 100;
   const args = { p_user: user.id, p_id: id, p_value: value, p_idem: key, p_quote_ts: new Date(oldest).toISOString() };
   const booked = f >= 1 ? await deps.rpc("close_position_v2", args) : await deps.rpc("reduce_position_v2", { ...args, p_fraction: f });
+  if (booked && !booked.replayed)
+    await recordRevenue(deps, rows.map(({ l, i, xp, px }) => revenueRow({ user, kind: f >= 1 ? "close" : "reduce", positionId: id, key, i, u, leg: l, clientSide: -l.side, qty: Math.round(l.qty * f * 1e4) / 1e4, index, xp, cp: px })));
   return { ...booked, value };
 }
 
+// The platform's books: what the exchange quoted, what the client got, and the markup in between.
+function revenueRow({ user, kind, positionId, key, i, u, leg, clientSide, qty, index, xp, cp }) {
+  return {
+    user_id: user.id, kind, position_id: positionId ?? null, idempotency_key: key, leg_no: i, underlying: u,
+    instrument: instrumentName(u, leg), client_side: clientSide, qty, index_price: Math.round(index * 100) / 100,
+    exchange_price: Math.round(xp * 1e4) / 1e4, client_price: Math.round(cp * 1e4) / 1e4,
+    markup: Math.round(Math.abs(cp - xp) * qty * 1e4) / 1e4,
+    exchange_fee: Math.round(Math.min(0.0003 * index * qty, 0.125 * xp * qty) * 1e4) / 1e4,
+  };
+}
+// The client's trade is already booked; a failure here is logged, never shown to the client.
+async function recordRevenue(deps, rows) {
+  if (!rows.length) return;
+  try { await deps.rpc("record_revenue", { p_rows: rows }); }
+  catch (e) { console.error("revenue not recorded", e && e.message, JSON.stringify(rows).slice(0, 500)); }
+}
+
+// Summary for the admin page. Only e-mail addresses listed in ADMIN_EMAILS get in.
+export const LOT = { BTC: 0.1, ETH: 1 }; // smallest Deribit option order
+export async function adminSummary(deps, { token, env = process.env }) {
+  const user = await deps.getUser(token);
+  if (!user) throw new TradeError("not_signed_in", 401);
+  const admins = String(env.ADMIN_EMAILS || "").toLowerCase().split(/[\s,;]+/).filter(Boolean);
+  if (!admins.length) throw new TradeError("admin_not_configured", 503);
+  if (!user.email || !admins.includes(String(user.email).toLowerCase())) throw new TradeError("not_admin", 403);
+  const s = await deps.rpc("admin_summary", {});
+  // The platform holds the opposite of what clients hold. Deribit takes whole lots, so the part
+  // below one lot stays unhedged (covered with a futures delta hedge in practice).
+  s.exposure = (s.exposure || []).map((x) => {
+    const need = -Number(x.client_net), lot = LOT[x.underlying];
+    const hedge = Math.sign(need) * Math.floor(Math.abs(need) / lot + 1e-9) * lot;
+    return { ...x, instrument: `${x.underlying}-${x.e}-${Number(x.k)}-${x.type}`, hedge: Math.round(hedge * 1e4) / 1e4, residual: Math.round((need - hedge) * 1e4) / 1e4 };
+  });
+  return s;
+}
+
 // Shared HTTP wrapper for Vercel-style (req, res) handlers.
-export function handler(fn, deps) {
+export function handler(fn, deps, method = "POST") {
   return async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
-    if (req.method !== "POST") return res.status(405).json({ error: "method_not_allowed" });
+    if (req.method !== method) return res.status(405).json({ error: "method_not_allowed" });
     try {
       const d = typeof deps === "function" ? deps() : deps;
       if (!d) throw new TradeError("server_not_configured", 503);
       const auth = String(req.headers.authorization || req.headers.Authorization || "");
       const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
-      const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {};
+      const body = method !== "POST" ? {} : typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {};
       return res.status(200).json(await fn(d, { token, body }));
     } catch (e) {
       if (e instanceof TradeError) return res.status(e.status).json({ error: e.code, detail: e.detail ?? null });

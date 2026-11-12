@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Strikeline Admin</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23070b14'/%3E%3Cpath d='M16 6v20' stroke='%238a9bff' stroke-width='1.6' stroke-dasharray='2 2.4'/%3E%3Cpath d='M5 21h11l11-11' stroke='%23e6ebf4' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='16' cy='21' r='2.6' fill='%238a9bff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&display=swap">
+<style>
+/* Internal desk view: the platform's own revenue and what it would need to hedge. Same tokens as the app, dark only. */
+:root{
+  --bg:#070b14; --panel:#0d1422; --sunk:#0a111d; --ink:#e6ebf4; --muted:#8290a8; --line:#1c2639;
+  --accent:#8a9bff; --accent-soft:#19214a; --amber:#f2b252;
+  --gain:#38d39f; --gain-soft:#0f2e26; --loss:#ff7070; --loss-soft:#3a1719;
+  --f:"Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 var(--f);font-variant-numeric:tabular-nums}
+[hidden]{display:none!important}
+.wrap{max-width:1180px;margin:0 auto;padding:16px 16px 48px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0 20px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px}
+.brand small{font-weight:500;color:var(--muted);font-size:13px;border:1px solid var(--line);border-radius:6px;padding:1px 7px}
+.who{color:var(--muted);font-size:13px;display:flex;gap:14px;align-items:center}
+a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+.state{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:24px;max-width:560px}
+.state b{display:block;font-size:16px;margin-bottom:6px}
+.state p{margin:0;color:var(--muted)}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:12px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.kpi span{display:block;color:var(--muted);font-size:12.5px}
+.kpi b{display:block;font-size:24px;font-weight:600;margin-top:4px;letter-spacing:-.01em}
+.kpi em{display:block;font-style:normal;color:var(--muted);font-size:12px;margin-top:2px}
+.kpi.main b{color:var(--gain)}
+.grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:12px;margin-top:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;min-width:0}
+.card h2{margin:0 0 2px;font-size:14px;font-weight:600}
+.card .sub{margin:0 0 12px;color:var(--muted);font-size:12.5px}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:right;font-weight:500;color:var(--muted);font-size:12px;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{text-align:right;padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child,th.l,td.l{text-align:left}
+tr:last-child td{border-bottom:0}
+.pos{color:var(--gain)} .neg{color:var(--loss)} .mut{color:var(--muted)}
+.tag{display:inline-block;font-size:11.5px;border-radius:5px;padding:1px 6px}
+.tag.b{background:var(--gain-soft);color:var(--gain)} .tag.s{background:var(--loss-soft);color:var(--loss)}
+.warn{color:var(--amber)}
+.empty{color:var(--muted);padding:12px 0}
+svg text{fill:var(--muted);font:11px var(--f)}
+.foot{color:var(--muted);font-size:12px;margin-top:14px}
+@media (max-width:860px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid{grid-template-columns:1fr}.kpi b{font-size:20px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">Strikeline <small>Admin</small></div>
+    <div class="who"><span id="who"></span><a href="/app">Open the app</a></div>
+  </header>
+
+  <div class="state" id="state"><b>Loading…</b><p>Checking your sign-in.</p></div>
+
+  <main id="main" hidden>
+    <section class="kpis">
+      <div class="kpi main"><span>Earned today</span><b id="kToday">—</b><em id="kTodayN"></em></div>
+      <div class="kpi"><span>Last 7 days</span><b id="kWeek">—</b></div>
+      <div class="kpi"><span>All time</span><b id="kAll">—</b><em id="kNet"></em></div>
+      <div class="kpi"><span>Client volume</span><b id="kVol">—</b><em id="kFills"></em></div>
+    </section>
+
+    <section class="card">
+      <h2>Earnings per day</h2>
+      <p class="sub">Markup earned over the last 30 days, before exchange fees.</p>
+      <div id="chart"></div>
+    </section>
+
+    <div class="grid">
+      <section class="card">
+        <h2>Open exposure</h2>
+        <p class="sub">What clients hold, summed over all accounts. The platform holds the opposite and hedges it on Deribit in whole lots (0.1 BTC, 1 ETH); the rest stays open until more client orders add up.</p>
+        <div class="scroll"><table id="expo"></table></div>
+      </section>
+      <section class="card">
+        <h2>Top options by earnings</h2>
+        <p class="sub">All time.</p>
+        <div class="scroll"><table id="top"></table></div>
+      </section>
+    </div>
+
+    <section class="card" style="margin-top:12px">
+      <h2>Latest fills</h2>
+      <p class="sub">Exchange price is Deribit's quote at the moment of the fill; client price is what the client got. Clients never see this page or these numbers.</p>
+      <div class="scroll"><table id="recent"></table></div>
+    </section>
+    <p class="foot" id="foot"></p>
+  </main>
+</div>
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const SB_JS="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js";
+const usd=(v,d=2)=>(v<0?"−$":"$")+Math.abs(Number(v)||0).toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d});
+const qty=v=>Number(v).toLocaleString("en-US",{maximumFractionDigits:4});
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const time=t=>new Date(t).toLocaleString("en-GB",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",timeZone:"Europe/Berlin"});
+function state(title,text,link){$("main").hidden=true;const s=$("state");s.hidden=false;
+  s.innerHTML=`<b>${esc(title)}</b><p>${esc(text)}${link?` <a href="${link[0]}">${esc(link[1])}</a>`:""}</p>`;}
+function loadScript(src){return new Promise((ok,no)=>{const s=document.createElement("script");s.src=src;s.onload=ok;s.onerror=no;document.head.appendChild(s);});}
+
+let sb=null;
+async function token(){const {data}=await sb.auth.getSession();return data&&data.session?data.session:null;}
+async function load(){
+  const session=await token();
+  if(!session){state("Sign in first","This page uses your Strikeline sign-in.",["/app#signin","Sign in in the app"]);return;}
+  $("who").textContent=session.user.email||"";
+  let r,j=null;
+  try{r=await fetch("/api/admin",{headers:{Authorization:"Bearer "+session.access_token},cache:"no-store"});j=await r.json().catch(()=>null);}
+  catch(e){state("Could not reach the server","Check your connection; the page retries every 30 seconds.");return;}
+  if(!r.ok){const code=j&&j.error;
+    if(code==="not_admin")return state("No access","This account is not on the admin list.");
+    if(code==="admin_not_configured")return state("Admin list not set","Add ADMIN_EMAILS (your sign-in e-mail) in Vercel → Settings → Environment Variables, then redeploy.");
+    if(code==="not_signed_in")return state("Session ended","Sign in again to continue.",["/app#signin","Sign in in the app"]);
+    if(code==="server_not_configured")return state("Server not set up","The service key is missing in Vercel.");
+    return state("Something went wrong","The books could not be loaded ("+(code||r.status)+"). If you just added the revenue migration, check it ran without errors.");}
+  render(j);
+}
+function render(s){
+  $("state").hidden=true;$("main").hidden=false;
+  const t=s.totals||{};
+  $("kToday").textContent=usd(t.today);$("kWeek").textContent=usd(t.week);$("kAll").textContent=usd(t.all);
+  $("kNet").textContent=`${usd(Number(t.all)-Number(t.fees))} after est. Deribit fees of ${usd(t.fees)}`;
+  $("kVol").textContent=usd(t.volume,0);$("kFills").textContent=`${t.fills||0} fills · ${t.clients||0} client${t.clients==1?"":"s"}`;
+  const todayRow=(s.daily||[]).find(d=>d.day===new Date().toISOString().slice(0,10));
+  $("kTodayN").textContent=todayRow?`${todayRow.fills} fills`:"No fills yet today";
+  chart(s.daily||[]);
+  const ex=s.exposure||[];
+  $("expo").innerHTML=ex.length?`<thead><tr><th>Option</th><th>Clients hold</th><th>Platform holds</th><th>Hedge on Deribit</th><th>Open rest</th></tr></thead><tbody>${ex.map(x=>`<tr>
+    <td>${esc(x.instrument)} <span class="mut">· ${x.clients}</span></td>
+    <td class="${x.client_net>0?"pos":"neg"}">${x.client_net>0?"+":""}${qty(x.client_net)}</td>
+    <td>${-x.client_net>0?"+":""}${qty(-x.client_net)}</td>
+    <td>${x.hedge?`${x.hedge>0?"Buy":"Sell"} ${qty(Math.abs(x.hedge))}`:'<span class="mut">—</span>'}</td>
+    <td class="${x.residual?"warn":"mut"}">${x.residual?qty(x.residual):"0"}</td></tr>`).join("")}</tbody>`:`<tbody><tr><td class="empty">No open client positions.</td></tr></tbody>`;
+  const top=s.by_instrument||[];
+  $("top").innerHTML=top.length?`<thead><tr><th>Option</th><th>Fills</th><th>Earned</th></tr></thead><tbody>${top.map(i=>`<tr><td>${esc(i.instrument)}</td><td>${i.fills}</td><td class="pos">${usd(i.markup)}</td></tr>`).join("")}</tbody>`:`<tbody><tr><td class="empty">No fills yet.</td></tr></tbody>`;
+  const rec=s.recent||[];
+  $("recent").innerHTML=rec.length?`<thead><tr><th>Time</th><th class="l">Option</th><th>Client</th><th>Size</th><th>Exchange price</th><th>Client price</th><th>Earned</th></tr></thead><tbody>${rec.map(x=>`<tr>
+    <td class="mut">${time(x.created_at)}</td><td class="l">${esc(x.instrument)}</td>
+    <td><span class="tag ${x.client_side>0?"b":"s"}">${x.client_side>0?"bought":"sold"}</span>${x.kind!=="open"?` <span class="mut">${x.kind}</span>`:""}</td>
+    <td>${qty(x.qty)}</td><td>${usd(x.exchange_price)}</td><td>${usd(x.client_price)}</td><td class="pos">${usd(x.markup)}</td></tr>`).join("")}</tbody>`:`<tbody><tr><td class="empty">No fills yet.</td></tr></tbody>`;
+  $("foot").textContent="Updated "+time(Date.now())+" · refreshes every 30 seconds · demo money, no real hedges are placed";
+}
+function chart(daily){
+  const days=[];const end=new Date();end.setUTCHours(0,0,0,0);
+  for(let i=29;i>=0;i--){const d=new Date(end-i*864e5).toISOString().slice(0,10);const r=daily.find(x=>x.day===d);days.push({d,v:r?Number(r.markup):0});}
+  const W=1100,H=170,P=28,max=Math.max(1,...days.map(x=>x.v)),bw=(W-P)/days.length;
+  const bars=days.map((x,i)=>{const h=(H-30)*x.v/max;return `<rect x="${P+i*bw+2}" y="${H-18-h}" width="${bw-4}" height="${Math.max(h,x.v>0?2:0)}" rx="3" fill="var(--gain)" opacity="${x.v>0?.85:0}"><title>${x.d}: ${usd(x.v)}</title></rect>`;}).join("");
+  const labels=days.map((x,i)=>i%5===4||i===29?`<text x="${P+i*bw+bw/2}" y="${H-4}" text-anchor="middle">${x.d.slice(8)}.${x.d.slice(5,7)}</text>`:"").join("");
+  $("chart").innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Earnings per day, last 30 days">
+    <line x1="${P}" x2="${W}" y1="${H-18}" y2="${H-18}" stroke="var(--line)"/>
+    <text x="0" y="14">${usd(max,0)}</text><text x="0" y="${H-20}">$0</text>${bars}${labels}</svg>`;
+}
+async function boot(){
+  let cfg=null;try{const r=await fetch("/api/config",{cache:"no-store"});if(r.ok)cfg=await r.json();}catch(e){}
+  if(!cfg||!cfg.url||!cfg.anonKey)return state("Accounts are not configured","Supabase is not connected to this deployment.");
+  try{await loadScript(SB_JS);}catch(e){return state("Could not load sign-in","Reload the page.");}
+  sb=window.supabase.createClient(cfg.url,cfg.anonKey,{auth:{persistSession:true,detectSessionInUrl:false}});
+  await load();setInterval(()=>{if(!document.hidden)load();},30000);
+}
+boot();
+})();
+</script>
+</body>
+</html>

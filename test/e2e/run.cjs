@@ -5,7 +5,7 @@ const G = "http://localhost:4173/", DB = "http://localhost:4174/", DOWN = "http:
 const runs = [
   ["guest.cjs", G + "app", "live"], ["guest.cjs", DOWN + "app", "down"],
   ["assess.cjs", G + "app"], ["levels.cjs", G, "guest"], ["levels.cjs", DB, "db"],
-  ["size.cjs", G, "guest"], ["size.cjs", DB, "db"], ["accounts.cjs", DB], ["stale.cjs", G],
+  ["size.cjs", G, "guest"], ["size.cjs", DB, "db"], ["accounts.cjs", DB], ["admin.cjs", DB], ["stale.cjs", G],
 ];
 let bad = 0;
 for (const [f, ...a] of runs) {

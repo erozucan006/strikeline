@@ -13,7 +13,7 @@ import { createHash } from "node:crypto";
 import chain from "../api/chain.js";
 import config from "../api/config.js";
 import logApi from "../api/log.js";
-import { handler as tradeHandler, placeOrder, closePosition } from "../api/_trade.js";
+import { handler as tradeHandler, placeOrder, closePosition, adminSummary } from "../api/_trade.js";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const args = new Set(process.argv.slice(2));
@@ -95,8 +95,8 @@ const sqlCall = (fn, args) => {
 const tradeDeps = () => db && {
   async getUser(token) {
     if (!/^[0-9a-f-]{36}$/.test(token)) return null;
-    const r = await db.query("select id from auth.users where id = $1", [token]);
-    return r.rows[0] ? { id: token } : null;
+    const r = await db.query("select id, email from auth.users where id = $1", [token]);
+    return r.rows[0] ? { id: token, email: r.rows[0].email } : null;
   },
   async getTicker(name) {
     const fx = globalThis.__fixture, coin = name.slice(0, 3), row = fx && fx[coin]?.rows.find((r) => r.instrument_name === name);
@@ -116,6 +116,9 @@ const tradeDeps = () => db && {
   },
 };
 const orderApi = tradeHandler(placeOrder, tradeDeps), closeApi = tradeHandler(closePosition, tradeDeps);
+// The preview's admin list: anyone signing in as admin@example.com (override with ADMIN_EMAILS).
+process.env.ADMIN_EMAILS ||= "admin@example.com";
+const adminApi = tradeHandler(adminSummary, tradeDeps, "GET");
 
 const types = { ".html": "text/html; charset=utf-8", ".json": "application/json", ".js": "text/javascript" };
 const vercelRes = (res) => {
@@ -131,6 +134,7 @@ createServer(async (req, res) => {
   const path = new URL(req.url, "http://x").pathname;
   if (path === "/api/chain") return chain(req, vercelRes(res));
   if (path === "/api/config") return config(req, vercelRes(res));
+  if (path === "/api/admin") return adminApi(req, vercelRes(res));
   if (["/api/order", "/api/close", "/api/log"].includes(path)) {
     let raw = ""; for await (const c of req) raw += c;
     req.body = raw;
@@ -146,7 +150,7 @@ createServer(async (req, res) => {
     return res.writeHead(200, { "content-type": "text/javascript" }).end(await readFile(join(root, path)));
   }
   // Mirrors vercel.json "cleanUrls": /app serves app.html
-  const file = normalize(join(root, path === "/" ? "index.html" : path === "/app" ? "app.html" : path));
+  const file = normalize(join(root, path === "/" ? "index.html" : path === "/app" ? "app.html" : path === "/admin" ? "admin.html" : path));
   if (!file.startsWith(root) || file.includes("/api/") || file.includes("/test/") || file.includes("/supabase/")) return res.writeHead(404).end();
   try {
     res.writeHead(200, { "content-type": types[extname(file)] || "application/octet-stream" }).end(await readFile(file));
