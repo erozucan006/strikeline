@@ -39,7 +39,10 @@ const MON = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","
 const expTs = (c) => { const m = /^(\d+)([A-Z]{3})(\d+)$/.exec(c); return Date.UTC(2000 + +m[3], MON.indexOf(m[2]), +m[1], 8); };
 const calls = fx.BTC.rows.filter((r) => r.instrument_name.endsWith("-C") && r.bid_price > 0 && r.ask_price > 0 && expTs(r.instrument_name.split("-")[1]) > Date.now() + 864e5)
   .sort((a, b) => a.instrument_name.localeCompare(b.instrument_name));
-const legFrom = (r, side, qty = 0.05) => { const [, e, K] = r.instrument_name.split("-"); return { type: "C", K: +K, e, side, qty, limit: (side > 0 ? r.ask_price : r.bid_price) * r.underlying_price }; };
+let SPREAD; // api/_spread.js, loaded at start: the price a client sees is the exchange quote plus the markup
+const legFrom = (r, side, qty = 0.05) => { const [, e, K] = r.instrument_name.split("-"), I = fx.BTC.index;
+  const limit = side > 0 ? SPREAD.clientAsk(r.ask_price * r.underlying_price, I) : SPREAD.clientBid(r.bid_price * r.underlying_price, I);
+  return { type: "C", K: +K, e, side, qty, limit }; };
 const apiOrder = (p, legs, key, path = "/api/order") => p.evaluate(async ([legs, key, path]) => {
   const s = JSON.parse(localStorage.getItem("fake-sb-session"));
   const r = await fetch(path, { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + s.access_token }, body: JSON.stringify({ underlying: "BTC", name: "x", legs, idempotencyKey: key }) });
@@ -51,6 +54,7 @@ const rpc = (p, fn, args) => p.evaluate(async ([fn, args]) => {
 }, [fn, args]);
 
 (async () => {
+  SPREAD = await import("../../api/_spread.js");
   const b = await chromium.launch();
   const ctx = await b.newContext({ viewport: { width: 1400, height: 900 } });
   let p = await setup(ctx); globalThis.__p = p;

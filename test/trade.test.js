@@ -2,6 +2,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { placeOrder, closePosition, requiredCapital, feeFor, expiryTs, handler, QUOTE_MAX_AGE_MS } from "../api/_trade.js";
+import { markup, clientAsk, clientBid, priceChain, spreadConfig } from "../api/_spread.js";
+const IDX = 79800, A = (p) => clientAsk(p, IDX), B = (p) => clientBid(p, IDX);
+const r4 = (v) => Math.round(v * 1e4) / 1e4;
 
 const NOW = Date.UTC(2026, 10, 5, 12);
 const E = "27NOV26", T = expiryTs(E);
@@ -24,13 +27,15 @@ const book = { "BTC-27NOV26-79000-C": ticker(2500, 2560), "BTC-27NOV26-81000-C":
 
 test("fills at the live ask/bid, not the price the browser sent", async () => {
   const d = deps(book);
-  const r = await placeOrder(d, { token: "good-token", body: body([L("C", 79000, 1, 0.05, 2560), L("C", 81000, -1, 0.05, 1600)]), now: NOW });
+  const r = await placeOrder(d, { token: "good-token", body: body([L("C", 79000, 1, 0.05, A(2560)), L("C", 81000, -1, 0.05, B(1600))]), now: NOW });
   const sent = d.calls[0].args;
   assert.equal(d.calls[0].fn, "place_order_v2");
-  assert.deepEqual(sent.p_legs.map((l) => l.entry), [2560, 1600], "buy at ask, sell at bid");
+  assert.deepEqual(sent.p_legs.map((l) => l.entry), [r4(A(2560)), r4(B(1600))], "buy at platform ask, sell at platform bid");
+  assert.ok(A(2560) > 2560 && B(1600) < 1600, "platform prices are wider than the exchange");
+  assert.equal(sent.p_fee, 0, "no separate commission");
   assert.ok(sent.p_legs.every((l) => !("limit" in l)), "browser limits are not passed on as prices");
   assert.equal(sent.p_user, "user-1");
-  assert.equal(r.net, Math.round((2560 - 1600) * 0.05 * 100) / 100);
+  assert.equal(r.net, Math.round((r4(A(2560)) - r4(B(1600))) * 0.05 * 100) / 100);
   assert.equal(sent.p_legs[0].t, T);
 });
 
@@ -41,8 +46,8 @@ test("a browser asking for a cheaper fill than the market gets price_moved, not 
 
 test("small moves within tolerance still fill, at the market price", async () => {
   const d = deps(book);
-  await placeOrder(d, { token: "good-token", body: body([L("C", 79000, 1, 0.05, 2550)]), now: NOW }); // 10 USD under the ask
-  assert.equal(d.calls[0].args.p_legs[0].entry, 2560);
+  await placeOrder(d, { token: "good-token", body: body([L("C", 79000, 1, 0.05, A(2560) - 10)]), now: NOW }); // 10 USD under the ask
+  assert.equal(d.calls[0].args.p_legs[0].entry, r4(A(2560)));
 });
 
 test("stale, missing or one-sided quotes are refused", async () => {
@@ -82,7 +87,7 @@ test("closing sells longs at the bid and buys back shorts at the ask", async () 
   const d = deps(book, { position });
   const r = await closePosition(d, { token: "good-token", body: { positionId: 7, fraction: 0.25, idempotencyKey: "c".repeat(20) }, now: NOW });
   assert.equal(d.calls[0].fn, "reduce_position_v2");
-  assert.equal(r.value, Math.round((2500 - 1650) * 0.08 * 0.25 * 100) / 100);
+  assert.equal(r.value, Math.round((B(2500) - A(1650)) * 0.08 * 0.25 * 100) / 100);
   const d2 = deps(book, { position });
   await closePosition(d2, { token: "good-token", body: { positionId: 7, fraction: 1, idempotencyKey: "c".repeat(20) }, now: NOW });
   assert.equal(d2.calls[0].fn, "close_position_v2");
@@ -102,8 +107,26 @@ test("HTTP wrapper: method, missing config and database errors map to clear code
   r = res(); await handler(placeOrder, () => null)({ method: "POST", headers: {}, body: {} }, r);
   assert.deepEqual([r.code, r.body.error], [503, "server_not_configured"]);
   const failing = { ...deps(book), rpc: async () => { throw new Error("level_required"); } };
-  r = res(); await handler(placeOrder, failing)({ method: "POST", headers: { authorization: "Bearer good-token" }, body: body([L("C", 79000, 1, 0.05, 2560)]) }, r);
+  r = res(); await handler(placeOrder, failing)({ method: "POST", headers: { authorization: "Bearer good-token" }, body: body([L("C", 79000, 1, 0.05, A(2560))]) }, r);
   // the real clock is used here; a 2-second-old ticker relative to NOW is stale now, so expect either code
   assert.ok([409].includes(r.code) && ["level_required", "stale_quote"].includes(r.body.error), JSON.stringify(r.body));
   assert.equal(r.headers["Cache-Control"], "no-store");
+});
+
+test("markup: share of price, with a floor and a cap tied to the index", () => {
+  const c = { pct: 0.04, floor: 0.0004, cap: 0.0015 };
+  assert.equal(markup(2000, 80000, c), 80, "4% of a mid-priced option");
+  assert.equal(markup(300, 80000, c), 32, "floor on a cheap option");
+  assert.equal(markup(12000, 80000, c), 120, "cap on an expensive option");
+  assert.equal(clientBid(20, 80000, c), null, "a bid the markup would wipe out is not offered");
+  assert.equal(clientAsk(null, 80000, c), null);
+  const env = spreadConfig({ SPREAD_PCT: "0.02", SPREAD_FLOOR: "", SPREAD_CAP: "0.001" });
+  assert.deepEqual(env, { pct: 0.02, floor: 0.0004, cap: 0.001 }, "environment overrides, blanks fall back");
+});
+
+test("the chain clients see is the exchange chain widened by the markup; marks are untouched", () => {
+  const snap = { BTC: { index: 80000, exps: [{ code: E, s: [[80000, 1900, 2000, 1950, 40, 1, 1800, 1900, 1850, 40, 1]] }] }, ETH: { index: 3000, exps: [] } };
+  const c = { pct: 0.04, floor: 0.0004, cap: 0.0015 }, row = priceChain(snap, c).BTC.exps[0].s[0];
+  assert.deepEqual(row, [80000, 1824, 2080, 1950, 40, 1, 1728, 1976, 1850, 40, 1]);
+  assert.equal(snap.BTC.exps[0].s[0][1], 1900, "input not modified");
 });

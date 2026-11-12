@@ -1,6 +1,7 @@
 // GET /api/chain → live BTC and ETH option chains from Deribit's public API.
 // Cached at Vercel's edge for 10 s so many viewers share one upstream call.
 import { buildSnapshot } from "./_snapshot.js";
+import { priceChain } from "./_spread.js";
 
 const BASE = "https://www.deribit.com/api/v2/public";
 
@@ -29,7 +30,7 @@ export async function fetchRaw() {
 
 export default async function handler(req, res) {
   try {
-    const snap = buildSnapshot(await fetchRaw());
+    const snap = priceChain(buildSnapshot(await fetchRaw()));
     res.setHeader("Cache-Control", "public, s-maxage=10, stale-while-revalidate=30");
     res.status(200).json(snap);
   } catch (err) {

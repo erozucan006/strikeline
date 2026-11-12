@@ -348,7 +348,7 @@ dialog#assess::backdrop{background:rgba(8,14,20,.55)}
       <div class="access" id="access"></div>
       <button class="primary" id="submit">Place demo order</button>
       <div class="msg" id="msg" role="status"></div>
-      <p class="fine">Fees estimated at 0.03% of underlying value per leg, capped at 12.5% of the option price. Required capital equals the maximum loss for defined-risk strategies.</p>
+      <p class="fine">No commission. Trading costs are included in the bid and ask; "trading costs" shows how far your price is from the market mid. Required capital equals the maximum loss for defined-risk strategies.</p>
     </aside>
   </main>
 
@@ -449,7 +449,9 @@ function legVal(l,Sx,tday,vs){const rem=daysTo(l.t)-tday;if(rem<=1e-6)return Mat
   return bs(fwd(l.u,l.e,Sx,rem),l.K,rem/365,real(l.u,l.e,l.K,l.type).iv+(vs||0),l.type).price;}
 function pnl(legs,Sx,tday,vs,entryOf){let s=0;for(const l of legs){s+=l.side*l.qty*(legVal(l,Sx,tday,vs)-entryOf(l));}return s;}
 function minDays(legs){return legs.length?Math.min(...legs.map(l=>daysTo(l.t))):0;}
-function fees(legs,entryOf){let f=0;for(const l of legs){const sp=S.spot[l.u];f+=Math.min(0.0003*sp*l.qty,0.125*entryOf(l)*l.qty);}return f;}
+// No separate commission: trading costs are in the bid/ask. Shown to the client as the distance from mid.
+function fees(){return 0;}
+function spreadCost(legs){let c=0;for(const l of legs){const q=legQuote(l);c+=Math.abs(legEntry(l)-q.mid)*l.qty;}return c;}
 function analyze(legs,entryOf){
   const sp=S.spot[S.u],T=minDays(legs);
   const f=x=>pnl(legs,x,T,0,entryOf);
@@ -662,10 +664,11 @@ function renderTicket(A){
     ["Strategy",S.preset===null?"Custom":PRESETS[S.preset][0]],
     ["Legs",lg.length],
     [net>=0?"Premium paid":"Premium received",usd(Math.abs(net),2)],
-    ["Fees (est.)",usd(A.fe,2)],
+    ["Commission",usd(0,2)],
+    ["Trading costs (in price)",usd(spreadCost(lg),2)],
     ["Required capital",usd(A.req,2)],
     ["Cash after order",usd(S.cash-total,2)]
-  ].map((r,i)=>`<div class="row${i===4?" total":""}"><span>${r[0]}</span><b>${r[1]}</b></div>`).join("");
+  ].map((r,i)=>`<div class="row${i===5?" total":""}"><span>${r[0]}</span><b>${r[1]}</b></div>`).join("");
   renderAccess();renderRisk(A);
 }
 async function submit(){
@@ -690,7 +693,7 @@ async function submit(){
     if(!r)return;
     S.idem=null;await loadServerState();  // cash, positions and the order count come back from the server, rounded as booked
     msg.className="msg ok";msg.textContent=r.replayed?"This order was already placed. Nothing was booked twice.":
-      `Filled at the market: ${legs.length} leg${legs.length>1?"s":""}, ${r.net>=0?"paid":"received"} ${usd(Math.abs(r.net),2)}, fees ${usd(r.fee,2)}. Saved to your account.`;
+      `Filled at the market: ${legs.length} leg${legs.length>1?"s":""}, ${r.net>=0?"paid":"received"} ${usd(Math.abs(r.net),2)}. Saved to your account.`;
     renderAll();return;
   }else{
     S.positions.unshift({id:S.nid++,name,legs,fee:A.fe,u:S.u});
@@ -1085,7 +1088,7 @@ function renderPos(){
     const fr=closeFractions(p).map(f=>`<button class="ghost" data-closef="${p.id}:${f}">${f<1?`Close ${f*100}%`:"Close all"} · <b>${sgn(val*f,2)}</b></button>`).join("");
     return `<div class="pcard"><div class="top2"><b>${p.name} · ${p.u}</b><span class="num ${pl>=0?"up":"down"}">${sgn(pl,2)}</span></div>
       <small>${p.legs.map(l=>`${l.side>0?"Buy":"Sell"} ${l.qty} ${l.type} ${kfmt(l.K)} ${fmtDate(l.t)} @ ${px(l.u,l.entry)}`).join(" · ")}</small>
-      <div class="top2"><small>${d.toFixed(1)} days to first expiry · fees ${usd(p.fee,2)}</small>${open?"":`<button class="ghost" data-adj="${p.id}">Reduce or close</button>`}</div>
+      <div class="top2"><small>${d.toFixed(1)} days to first expiry${p.fee>0.005?` · fees ${usd(p.fee,2)}`:""}</small>${open?"":`<button class="ghost" data-adj="${p.id}">Reduce or close</button>`}</div>
       ${open?`<div class="adj"><span>At current mid prices:</span>${fr}<button class="link" data-adj="">Cancel</button></div>`:""}</div>`;}).join("");
   $("possub").textContent=S.positions.length+" open";
 }

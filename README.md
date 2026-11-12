@@ -61,7 +61,7 @@ The browser reads its own rows through row level security and cannot write any t
 ```
 browser ── "buy 0.05 BTC-27NOV26-80000-C, worst price 2 560 USD", session token, idempotency key ──▶ /api/order
 /api/order ── checks the token with Supabase, fetches each leg's ticker from Deribit (refused if older than 30 s)
-           ── fills buys at the ask and sells at the bid; refuses with price_moved if worse than the limit (1% tolerance)
+           ── fills buys at the ask and sells at the bid, each widened by the markup; refuses with price_moved if worse than the limit (1% tolerance)
            ── computes fee and required capital itself
            ── place_order_v2 (service key only) ──▶ database: level, cash, rate limit, idempotency, quote age
 ```
@@ -75,6 +75,10 @@ browser ── "buy 0.05 BTC-27NOV26-80000-C, worst price 2 560 USD", session to
 | `reset_account` | signed-in user | Closes open positions and restores demo cash |
 
 The old browser-callable `place_order`, `close_position` and `reduce_position` are revoked by migration 003.
+
+### Pricing
+
+Clients see Deribit's quote widened by a markup and pay no separate commission (`api/_spread.js`). Per 1 coin of option the markup is `clamp(SPREAD_PCT × price, SPREAD_FLOOR × index, SPREAD_CAP × index)`; buys fill at ask + markup, sells at bid − markup. The chain (`/api/chain`), fills (`/api/order`) and closes (`/api/close`) all use the same function. Set the three values as Vercel environment variables; the numbers in the code are only fallbacks for the preview and tests. The ticket shows the client "trading costs (in price)": the distance between their price and the market mid.
 
 ### Records
 

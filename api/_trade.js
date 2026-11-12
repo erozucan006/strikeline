@@ -5,6 +5,8 @@
 // Everything that touches the network comes in through `deps`, so the same code runs on Vercel
 // (api/_deps.js), in the local preview (test/serve.js) and in unit tests.
 
+import { clientAsk, clientBid, spreadConfig } from "./_spread.js";
+
 export const QUOTE_MAX_AGE_MS = 30_000; // a ticker older than this is treated as stale
 export const MAX_LEGS = 8;
 const COINS = { BTC: { minQty: 0.01 }, ETH: { minQty: 0.1 } };
@@ -74,11 +76,11 @@ export async function quotesFor(deps, u, legs, now) {
   return { quotes: out, oldest, index };
 }
 
-// Buy at the ask, sell at the bid. A fill worse than the browser's limit by more than a small
+// Buy at the platform ask, sell at the platform bid (exchange quote widened by the markup). A fill worse than the browser's limit by more than a small
 // tolerance is refused, so a price that moved between screen and server is never filled silently.
-export function fillLegs(legs, quotes, index) {
+export function fillLegs(legs, quotes, index, c = spreadConfig()) {
   return legs.map((l, i) => {
-    const q = quotes[i], px = l.side > 0 ? q.ask : q.bid;
+    const q = quotes[i], px = l.side > 0 ? clientAsk(q.ask, index, c) : clientBid(q.bid, index, c);
     if (px == null) throw new TradeError("no_quote", 409, `${l.type} ${l.K} ${l.side > 0 ? "ask" : "bid"}`);
     const tol = Math.max(0.01 * l.limit, 0.0002 * index);
     if (l.side > 0 ? px > l.limit + tol : px < l.limit - tol)
@@ -120,7 +122,7 @@ export async function placeOrder(deps, { token, body, now = Date.now() }) {
   const order = parseOrder(body, now);
   const { quotes, oldest, index } = await quotesFor(deps, order.u, order.legs, now);
   const legs = fillLegs(order.legs, quotes, index);
-  const fee = Math.round(feeFor(legs, index) * 100) / 100;
+  const fee = 0; // no separate commission: the platform earns its markup in the price
   const { req, net } = requiredCapital(legs, index, fee);
   const booked = await deps.rpc("place_order_v2", {
     p_user: user.id, p_name: order.name, p_underlying: order.u,
@@ -130,7 +132,7 @@ export async function placeOrder(deps, { token, body, now = Date.now() }) {
   return { ...booked, fills: legs.map((l) => ({ type: l.type, K: l.K, e: l.e, side: l.side, qty: l.qty, price: l.entry })), net: Math.round(net * 100) / 100, fee, required: Math.round(req * 100) / 100 };
 }
 
-// Closing sells what was bought (at the bid) and buys back what was sold (at the ask).
+// Closing sells what was bought (at the platform bid) and buys back what was sold (at the platform ask).
 // Legs past expiry settle at intrinsic value against the index.
 export async function closePosition(deps, { token, body, now = Date.now() }) {
   const user = await deps.getUser(token);
@@ -148,8 +150,9 @@ export async function closePosition(deps, { token, body, now = Date.now() }) {
   if (q) { index = q.index; oldest = q.oldest; }
   if (done.length && !index) index = await deps.getIndex(u);
   let value = 0;
+  const c = spreadConfig();
   live.forEach((l, i) => {
-    const px = l.side > 0 ? q.quotes[i].bid : q.quotes[i].ask;
+    const px = l.side > 0 ? clientBid(q.quotes[i].bid, index, c) : clientAsk(q.quotes[i].ask, index, c);
     if (px == null) throw new TradeError("no_quote", 409, `${l.type} ${l.K}`);
     value += l.side * l.qty * f * px;
   });
